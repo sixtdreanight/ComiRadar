@@ -30,7 +30,7 @@ async def main():
 
 async def _fetch_list(cookies: dict, project_type: int) -> list[dict]:
     items = []
-    for page in range(1, 4):  # max 3 pages = 60 events per type
+    for page in range(1, 100):
         async with httpx.AsyncClient(
             cookies=cookies or None, timeout=30,
             headers={
