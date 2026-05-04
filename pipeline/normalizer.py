@@ -29,30 +29,33 @@ def _try_normalize(fn, raw: dict) -> EventModel | None:
 
 @register("bilibili")
 def _(raw: dict) -> EventModel:
-    pid = str(raw.get("id") or raw.get("project_id", ""))
-    title = raw.get("name") or raw.get("project_name") or raw.get("title", "")
-    start = raw.get("start_time") or raw.get("startTime") or raw.get("startDate", "")
-    end = raw.get("end_time") or raw.get("endTime") or raw.get("endDate", "")
-    price = _format_price(raw.get("price_low") or raw.get("priceLow"),
-                          raw.get("price_high") or raw.get("priceHigh"))
-    ptype = raw.get("project_type") or raw.get("projectType") or 1
+    detail = raw.get("_detail") or {}
+    pid = str(raw.get("id") or detail.get("id", ""))
+    title = detail.get("name") or raw.get("project_name") or raw.get("name", "")
+    tlabel = raw.get("tlabel", "")
+    start, end = _parse_tlabel(tlabel)
+    price = _extract_bili_price(detail)
+    ptype = detail.get("project_type") or raw.get("project_type", 1)
     category = {1: "漫展", 2: "演唱会", 3: "展览", 4: "其他"}.get(int(ptype), "其他")
-    status_map = {1: "预告", 2: "售票中", 3: "已结束", 4: "即将开票"}
+    status = _bili_status(raw.get("label", ""), raw.get("countdown", ""))
+    cover = raw.get("cover", "")
+    if cover and not cover.startswith("http"):
+        cover = "https:" + cover
     return EventModel(
         id=f"bilibili_{pid}",
         source_type="ticketing",
         source_name="bilibili",
         source_id=pid,
-        title=title,
+        title=title or f"演出 #{pid}",
         category=category,
-        city=raw.get("city_name") or raw.get("cityName") or "",
-        venue=raw.get("venue_name") or raw.get("venueName") or "",
-        start_date=_parse_date(start),
-        end_date=_parse_date(end) if end else None,
+        city=raw.get("city", ""),
+        venue=str(raw.get("venueId", "")),
+        start_date=start or datetime.now().strftime("%Y-%m-%d"),
+        end_date=end,
         price_range=price,
         ticket_url=f"https://show.bilibili.com/platform/detail.html?id={pid}",
-        image_url=raw.get("cover") or raw.get("image") or "",
-        status=status_map.get(raw.get("status", 2), "售票中"),
+        image_url=cover,
+        status=status,
         confidence=1.0,
     )
 
@@ -187,6 +190,47 @@ def _guess_category(title: str) -> str:
         if alias.lower() in t:
             return cat
     return "其他"
+
+
+def _parse_tlabel(tlabel: str) -> tuple[str, str | None]:
+    """Parse B站 tlabel like '2026.05.04' or '2026.05.03 - 05.05'"""
+    if not tlabel:
+        return "", None
+    tlabel = tlabel.replace(".", "-").replace(" ", "")
+    if " - " in tlabel:
+        parts = tlabel.split(" - ")
+        start = parts[0]
+        end = parts[1]
+        if len(end) < 8:
+            end = start[:5] + "-" + end
+        return start, end
+    return tlabel, None
+
+
+def _extract_bili_price(detail: dict) -> str:
+    """Extract price from B站 detail API response."""
+    performances = detail.get("performance", []) or []
+    for perf in performances:
+        screens = perf.get("screenList", []) or []
+        for screen in screens:
+            skus = screen.get("skuList", []) or screen.get("skus", []) or []
+            prices = [s.get("price", 0) for s in skus if s.get("price")]
+            if prices:
+                lo, hi = min(prices), max(prices)
+                if lo and hi:
+                    return f"¥{int(lo/100)}-{int(hi/100)}"
+    return "待定"
+
+
+def _bili_status(label: str, countdown: str) -> str:
+    s = (label + countdown).lower()
+    if any(w in s for w in ["热卖", "售票", "销售"]):
+        return "售票中"
+    if any(w in s for w in ["即将", "预告", "预售"]):
+        return "即将开票"
+    if any(w in s for w in ["截止", "结束", "停售"]):
+        return "已结束"
+    return "售票中"
 
 
 def _guess_status(raw: dict) -> str:

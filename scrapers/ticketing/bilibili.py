@@ -1,3 +1,4 @@
+import asyncio
 import json
 import sys
 from scrapers.base import TicketingScraper
@@ -7,7 +8,7 @@ from config import BILIBILI_COOKIES
 class BilibiliScraper(TicketingScraper):
     platform = "bilibili"
     base_url = "https://show.bilibili.com"
-    rate_limit = 2.0
+    rate_limit = 1.5
     cookies = BILIBILI_COOKIES
 
     async def scrape(self) -> list[dict]:
@@ -16,7 +17,7 @@ class BilibiliScraper(TicketingScraper):
             page = 1
             while page <= 10:
                 raw = await self.fetch(
-                    "/api/ticket/project/list",
+                    "/api/ticket/project/listV2",
                     params={
                         "version": "134", "page": page, "pagesize": 50,
                         "project_type": project_type, "platform": "web",
@@ -25,24 +26,53 @@ class BilibiliScraper(TicketingScraper):
                 )
                 data = self.parse(raw)
                 if page == 1:
-                    print(f"  [bilibili] type={project_type}: {len(data)} events (page 1)", file=sys.stderr)
+                    print(f"  [bilibili] type={project_type}: {len(data)} events", file=sys.stderr)
                 if not data:
                     break
                 results.extend(data)
                 if len(data) < 50:
                     break
                 page += 1
-        return results
+        return await self._enrich(results)
+
+    async def _enrich(self, items: list[dict]) -> list[dict]:
+        enriched = []
+        for item in items:
+            pid = item.get("id")
+            if not pid:
+                continue
+            try:
+                detail = await self._get_detail(pid)
+                if detail:
+                    item["_detail"] = detail
+                else:
+                    item["_detail"] = {}
+            except Exception:
+                item["_detail"] = {}
+            enriched.append(item)
+            await asyncio.sleep(0.5)
+        return enriched
+
+    async def _get_detail(self, pid: int) -> dict | None:
+        try:
+            raw = await self.fetch(
+                "/api/ticket/project/get",
+                params={"version": "134", "id": pid, "platform": "web"},
+            )
+            obj = json.loads(raw)
+            if obj.get("errno") == 0:
+                return obj.get("data", {})
+        except Exception:
+            pass
+        return None
 
     def parse(self, raw: str) -> list[dict]:
         try:
             obj = json.loads(raw)
-            errno = obj.get("errno", -1)
-            if errno != 0:
-                print(f"  [bilibili] API errno={errno} msg={obj.get('msg','')}", file=sys.stderr)
+            if obj.get("errno") != 0:
+                print(f"  [bilibili] errno={obj.get('errno')} msg={obj.get('msg','')}", file=sys.stderr)
                 return []
-            result = obj.get("data", {}).get("result", []) or []
-            return result if isinstance(result, list) else []
+            return obj.get("data", {}).get("result", []) or []
         except (json.JSONDecodeError, KeyError) as e:
-            print(f"  [bilibili] parse error: {e}, raw[:100]={raw[:100]}", file=sys.stderr)
+            print(f"  [bilibili] parse error: {e}", file=sys.stderr)
             return []
