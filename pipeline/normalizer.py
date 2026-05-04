@@ -201,6 +201,25 @@ def _guess_category(title: str) -> str:
 
 @register("weibo")
 def _(raw: dict) -> EventModel:
+    # AI output format: {title, date, endDate, city, venue, category, confidence}
+    ai_title = raw.get("title", "")
+    if ai_title:
+        sid = str(hash(ai_title + raw.get("city", "") + raw.get("date", "")) % 10**10)
+        return EventModel(
+            id=f"weibo_ai_{sid}",
+            source_type="social",
+            source_name="weibo",
+            source_id=raw.get("_source", "weibo_ai"),
+            title=ai_title,
+            category=raw.get("category", "其他"),
+            city=raw.get("city", ""),
+            venue=raw.get("venue", ""),
+            start_date=raw.get("date") or datetime.now().strftime("%Y-%m-%d"),
+            end_date=raw.get("endDate"),
+            status="预告",
+            confidence=float(raw.get("confidence", 0.3)),
+        )
+    # Raw text format (fallback)
     text = raw.get("text", "")
     sid = str(hash(text) % 10**10)
     city = _extract_city(text)
