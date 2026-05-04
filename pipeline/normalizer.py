@@ -294,6 +294,15 @@ def _(raw: dict) -> EventModel:
         status="预告", confidence=0.95)
 
 
+@register("ciefc")
+def _(raw: dict) -> EventModel:
+    pid = str(hash(raw.get("title","")+raw.get("date",""))%10**10)
+    return EventModel(id=f"ciefc_{pid}",source_type="ticketing",source_name="ciefc",
+        source_id=pid,title=raw.get("title",""),category="漫展",
+        city="广州",venue=raw.get("venue","广交会展馆"),
+        start_date=raw.get("date",""),status="预告",confidence=0.8)
+
+
 @register("nyato")
 def _(raw: dict) -> EventModel:
     pid = str(hash(raw.get("title", "") + raw.get("city", "") + raw.get("startDate", "")) % 10**10)

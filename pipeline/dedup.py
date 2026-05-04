@@ -20,9 +20,10 @@ def _normalize_title(title: str) -> str:
 
 
 def make_fingerprint(event: EventModel) -> str:
+    city = event.city.strip().rstrip("市")
     parts = [
         _normalize_title(event.title),
-        event.city.strip(),
+        city,
         event.start_date,
     ]
     raw = "|".join(p for p in parts if p)
@@ -91,9 +92,13 @@ def _is_same_event(a: EventModel, b: EventModel) -> bool:
 
 
 def _merge_fields(target: EventModel, source: EventModel):
-    """用 source 补全 target 的缺失字段。"""
+    """用 source 补全 target 的缺失字段，合并来源。"""
     for field in ["venue", "end_date", "price_range", "ticket_url", "image_url"]:
         src_val = getattr(source, field, None)
         tgt_val = getattr(target, field, None)
         if not tgt_val and src_val:
             setattr(target, field, src_val)
+    # Merge source names
+    src_names = set(target.source_name.split(","))
+    if source.source_name not in src_names:
+        target.source_name = target.source_name + "," + source.source_name

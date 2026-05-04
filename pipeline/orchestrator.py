@@ -42,6 +42,12 @@ class Orchestrator:
                 scrapers.append(ChinajoyScraper)
         except ImportError:
             pass
+        try:
+            from scrapers.ciefc import CiefcScraper
+            if CiefcScraper not in scrapers:
+                scrapers.append(CiefcScraper)
+        except ImportError:
+            pass
         scrapers = [s for s in scrapers if is_enabled(getattr(s, 'platform', 'unknown'))]
         await self._run_ticketing(scrapers)
 
