@@ -55,7 +55,7 @@ async def _call_ai(text: str) -> list[dict]:
                 "Content-Type": "application/json",
             },
             json={
-                "model": "deepseek-chat",
+                "model": "deepseek-v4-flash",
                 "messages": [{"role": "user", "content": PROMPT.format(text=text)}],
                 "temperature": 0.1,
                 "max_tokens": 500,
