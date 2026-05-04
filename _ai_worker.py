@@ -1,4 +1,4 @@
-"""AI推理 Worker：预筛选 + DeepSeek 推理演出信息。"""
+"""AI Worker：从社媒帖文提取演出信息。只做提取，不做知识库生成。"""
 import json
 import os
 import re
@@ -22,8 +22,15 @@ VENUE_KW = [
 
 EVENT_KW = [
     "漫展", "同人展", "演唱会", "音乐会", "舞台剧", "展览", "嘉年华",
-    "见面会", "CP展", "ComiCup", "CP", "ONLY", "only", "CD", "萤火虫",
-    "IJOY", "BW", "BML", "CJ", "ChinaJoy", "CCG", "ido", "IDO",
+    "见面会", "ComiCup", "CP展", "ONLY", "萤火虫", "ChinaJoy",
+    "IJOY", "BW", "BML", "CCG", "IDO",
+]
+
+CATEGORIES = ["漫展", "同人展", "演唱会", "音乐会", "展览", "其他"]
+
+NOISE_PATTERNS = [
+    r"返图", r"自拍", r"面基", r"集邮", r"扩列", r"求扩",
+    r"#.*?#", r"超话", r"coser", r"好开心", r"玩得",
 ]
 
 DATE_RE = re.compile(
@@ -32,142 +39,132 @@ DATE_RE = re.compile(
     r"(\d{1,2}月\d{1,2}[日号]?)"
 )
 
-NOISE_RE = re.compile(r"(返图|自拍|面基|集邮|扩列|求扩|#.*?#|超话|coser)")
+PROMPT = """你只做一件事：从社媒情报中提取真实的演出活动信息。
 
-PROMPT = """你是二次元演出情报助手。从以下精炼的社媒情报中推理演出信息。同时利用你的知识列出已知的2026年中国漫展/同人展/二次元音乐会。
+规则（严格执行）：
+1. 只提取有明确活动名称的演出，标题为空就不输出
+2. date 必须能用，无法确定就填 null
+3. city/venue 不确定就留空，不要编造
+4. category 严格从以下选：漫展、同人展、演唱会、音乐会、展览、其他
+5. 多条情报指向同一事件时合并为一条
+6. 忽略返图、自拍、闲聊类内容
 
-社媒情报:
+输入情报：
 {posts}
 
-规则：
-1. 只提取明确是演出活动的情报，忽略无关内容
-2. 多条情报指向同一事件时合并，交叉验证
-3. 利用你的知识补全：如果你知道某活动的典型时间和场馆，请补全
-4. 日期模糊时合理推断（如"五一期间"→5月1-5日，"端午"→查2026年端午=6月19-21日）
-5. 同时列出你训练数据中知道的2026年已知活动（如ComiCup、萤火虫、IJOY等）
-
-输出JSON对象（不要markdown）:
-{
-  "events": [{"title":"活动名","date":"YYYY-MM-DD","endDate":"YYYY-MM-DD","city":"城市","venue":"场馆","category":"漫展/同人展/演唱会/展览/音乐会/其他","confidence":0.7,"source":"social/knowledge"}],
-  "knowledge": [{"title":"已知活动名","typicalMonth":"通常月份","city":"城市","venue":"场馆","notes":"备注"}]
-}"""
+输出纯JSON数组（不要markdown），每条格式：
+{"title":"活动名","date":"YYYY-MM-DD或null","endDate":"YYYY-MM-DD或null","city":"或空","venue":"或空","category":"漫展/同人展/演唱会/音乐会/展览/其他","confidence":0.5}
+confidence: 0.9=多方印证有明确日期, 0.7=有日期和城市, 0.5=只有部分信息"""
 
 
 def prefilter(posts: list[dict]) -> list[dict]:
-    """提取关键信息，过滤噪音，减少 token 消耗。"""
     refined = []
     for p in posts:
         text = p.get("text", "")
-        if not text or len(text) < 15:
+        if len(text) < 15:
             continue
+
         # 丢弃纯噪音
-        if NOISE_RE.search(text) and not any(kw in text for kw in ["展", "届", "音乐会", "演唱会"]):
+        noise = False
+        for pat in NOISE_PATTERNS:
+            if re.search(pat, text):
+                noise = True
+                break
+        if noise and not any(kw in text for kw in ["展", "届", "音乐会", "演唱会", "官宣", "定档"]):
             continue
 
         score = 0
         city = ""
-        venue = ""
         dates = []
 
-        # 提取城市
         for c in CITIES:
             if c in text:
                 city = c
                 score += 1
                 break
 
-        # 提取场馆
         for vk in VENUE_KW:
-            idx = text.find(vk)
-            if idx >= 0:
-                start = max(0, idx - 6)
-                end = min(len(text), idx + len(vk) + 6)
-                venue = text[start:end].strip()
+            if vk in text:
                 score += 1
                 break
 
-        # 提取日期
-        for m in DATE_RE.finditer(text):
-            dates.append(m.group(0))
+        dates = [m.group(0) for m in DATE_RE.finditer(text)]
         if dates:
-            score += 1
+            score += 2  # date is most important
 
-        # 提取活动关键词
         for ek in EVENT_KW:
             if ek.lower() in text.lower():
                 score += 1
                 break
 
-        # 生成精炼摘要: 只保留关键行
+        # Compress: only keep lines with keywords
         lines = [l.strip() for l in text.split("\n") if l.strip()]
-        key_lines = [l for l in lines if any(
-            kw in l for kw in CITIES + VENUE_KW + EVENT_KW
-        ) or re.search(r"\d", l)]
-        summary = " | ".join(key_lines[:3]) if key_lines else text[:120]
+        key_lines = [l for l in lines if any(kw in l for kw in CITIES + VENUE_KW + EVENT_KW) or re.search(r"\d", l)]
+        summary = " | ".join(key_lines[:2]) if key_lines else text[:100]
 
-        if score >= 2 or (score >= 1 and any(d in text for d in ["第", "届", "官宣", "定档"])):
+        if score >= 3:
             refined.append({
                 "text": summary[:200],
-                "date": p.get("date", ""),
+                "date_hint": p.get("date", ""),
                 "city": city,
-                "venue": venue,
-                "dates_found": dates[:3],
+                "dates_found": dates[:2],
                 "score": score,
             })
 
-    # 按 score 降序，去重（相同 text 只保留一条）
+    # Dedup similar texts
     seen = set()
     uniq = []
     for r in sorted(refined, key=lambda x: x["score"], reverse=True):
-        key = r["text"][:50]
+        key = r["text"][:40]
         if key not in seen:
             seen.add(key)
             uniq.append(r)
 
-    print(f"  [prefilter] {len(posts)}→{len(uniq)} posts (score>=2)", file=sys.stderr)
+    print(f"  [prefilter] {len(posts)}→{len(uniq)} posts", file=sys.stderr)
     return uniq
 
 
-async def analyze(posts: list[dict]) -> dict:
+async def analyze(posts: list[dict]) -> list[dict]:
     if not API_KEY:
-        print("[AI] No API key", file=sys.stderr)
-        return {"events": [], "knowledge": []}
+        return []
 
-    # Pre-filter
     refined = prefilter(posts)
     if not refined:
-        return {"events": [], "knowledge": []}
-
-    # Batch send to AI (single call with all refined data)
-    posts_text = json.dumps(refined, ensure_ascii=False)
+        return []
 
     async with httpx.AsyncClient(timeout=120) as client:
         resp = await client.post(
             API_URL,
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json",
-            },
+            headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
             json={
                 "model": "deepseek-v4-flash",
-                "messages": [{"role": "user", "content": PROMPT.replace("{posts}", posts_text)}],
+                "messages": [{"role": "user", "content": PROMPT.replace("{posts}", json.dumps(refined, ensure_ascii=False))}],
                 "temperature": 0.1,
-                "max_tokens": 8000,
+                "max_tokens": 6000,
             },
         )
         data = resp.json()
         content = data["choices"][0]["message"]["content"].strip()
         content = content.removeprefix("```json").removesuffix("```").strip()
         try:
-            result = json.loads(content)
-            events = result.get("events", []) if isinstance(result, dict) else []
-            knowledge = result.get("knowledge", []) if isinstance(result, dict) else []
+            events = json.loads(content)
         except json.JSONDecodeError:
-            events = json.loads(content) if isinstance(content, str) else []
-            knowledge = []
+            events = []
 
-    print(f"  [AI] {len(events)} events + {len(knowledge)} known activities", file=sys.stderr)
-    return {"events": events, "knowledge": knowledge}
+    # Post-filter: require at least title
+    events = [e for e in events if e.get("title") and e["title"] != "null"]
+    # Normalize categories
+    for e in events:
+        cat = e.get("category", "其他")
+        if cat not in CATEGORIES:
+            e["category"] = "其他"
+        if not e.get("confidence"):
+            e["confidence"] = 0.5
+        # Clean title
+        e["title"] = e["title"].strip().replace("  ", " ")
+
+    print(f"  [AI] {len(events)} events extracted", file=sys.stderr)
+    return events
 
 
 async def main():
@@ -179,22 +176,11 @@ async def main():
         else:
             posts = json.loads(sys.stdin.read())
 
-        print(f"[AI] Processing {len(posts)} posts...", file=sys.stderr)
-        result = await analyze(posts)
-        all_events = result.get("events", [])
-        for k in result.get("knowledge", []):
-            all_events.append({
-                "title": k.get("title", ""),
-                "date": "",
-                "city": k.get("city", ""),
-                "venue": k.get("venue", ""),
-                "category": k.get("category", "其他"),
-                "confidence": 0.3,
-                "source": "ai_knowledge",
-            })
-        print(json.dumps(all_events, ensure_ascii=False))
+        print(f"[AI] {len(posts)} posts", file=sys.stderr)
+        events = await analyze(posts)
+        print(json.dumps(events, ensure_ascii=False))
     except Exception as e:
-        print(f"[AI] fatal: {e}", file=sys.stderr)
+        print(f"[AI] error: {e}", file=sys.stderr)
         print("[]")
 
 
