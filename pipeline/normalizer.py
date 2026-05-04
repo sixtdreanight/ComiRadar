@@ -6,6 +6,11 @@ CATEGORY_ALIASES = {
     "漫展": "漫展", "同人展": "同人展", "演唱会": "演唱会",
     "舞台剧": "舞台剧", "音乐会": "音乐会", "展览": "展览",
     "二次元": "漫展", "cosplay": "漫展", "动漫": "漫展",
+    "主题餐厅": "展览", "主题店": "展览", "授权店": "展览",
+    "咖啡": "展览", "快闪": "展览", "谷子": "展览",
+    "only": "同人展", "ONLY": "同人展", "同人": "同人展",
+    "画展": "展览", "纪念展": "展览", "原画展": "展览",
+    "声优": "演唱会", "见面会": "演唱会", "live": "演唱会", "Live": "演唱会",
 }
 
 
@@ -36,7 +41,9 @@ def _(raw: dict) -> EventModel:
     start, end = _parse_tlabel(tlabel)
     price = _extract_bili_price(detail)
     ptype = detail.get("project_type") or raw.get("project_type", 1)
-    category = {1: "漫展", 2: "演唱会", 3: "展览", 4: "其他"}.get(int(ptype), "其他")
+    category = {1: "漫展", 2: "演唱会", 3: "展览", 4: "其他"}.get(int(ptype) if ptype else 1, "其他")
+    if category == "其他":
+        category = _guess_category(title)
     status = _bili_status(raw.get("label", ""), raw.get("countdown", ""))
     cover = raw.get("cover", "")
     if cover and not cover.startswith("http"):

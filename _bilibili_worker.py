@@ -30,7 +30,9 @@ async def main():
 
 async def _fetch_list(cookies: dict, project_type: int) -> list[dict]:
     items = []
-    for page in range(1, 100):
+    page = 1
+    max_pages = 10
+    while page <= max_pages:
         async with httpx.AsyncClient(
             cookies=cookies or None, timeout=30,
             headers={
@@ -52,10 +54,20 @@ async def _fetch_list(cookies: dict, project_type: int) -> list[dict]:
             obj = json.loads(r.text)
             if obj.get("errno") != 0:
                 break
-            page_items = obj.get("data", {}).get("result", []) or []
+            data = obj.get("data", {})
+            page_items = data.get("result", []) or []
+            for it in page_items:
+                if not it.get("project_type"):
+                    it["project_type"] = project_type
             items.extend(page_items)
+            if page == 1:
+                total = data.get("total", 0) or 0
+                pagesize = data.get("pagesize", 20)
+                if total:
+                    max_pages = min((total + pagesize - 1) // pagesize, 10)
             if len(page_items) < 20:
                 break
+            page += 1
         await asyncio.sleep(1)
     return items
 
