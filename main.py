@@ -17,13 +17,27 @@ async def cmd_scrape(args):
 
 def cmd_export(args):
     from db.store import get_session, get_all_events
+    from datetime import date
     session = get_session()
     try:
         events = get_all_events(session)
-        data = [_event_to_dict(e) for e in events]
+        today = date.today().isoformat()
+        # Filter: drop events that have definitely ended
+        active = []
+        for e in events:
+            if not e.start_date:
+                continue
+            if e.end_date:
+                cutoff = e.end_date
+            else:
+                # No end date — assume runs 7 days
+                cutoff = (date.fromisoformat(e.start_date) + __import__('datetime').timedelta(days=7)).isoformat()
+            if cutoff >= today and e.status != "已结束":
+                active.append(e)
+        data = [_event_to_dict(e) for e in active]
         with open(EXPORT_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"Exported {len(data)} events to {EXPORT_PATH}")
+        print(f"Exported {len(data)} events (filtered {len(events)-len(data)} expired)")
     finally:
         session.close()
 

@@ -11,6 +11,9 @@ CATEGORY_ALIASES = {
     "only": "同人展", "ONLY": "同人展", "同人": "同人展",
     "画展": "展览", "纪念展": "展览", "原画展": "展览",
     "声优": "演唱会", "见面会": "演唱会", "live": "演唱会", "Live": "演唱会",
+    "音乐节": "演唱会", "地下偶像": "演唱会", "mixup": "演唱会",
+    "游乐园": "漫展", "嘉年华": "漫展", "面基": "漫展",
+    "痛岛": "漫展", "cafe": "展览", "茶会": "展览", "玩偶": "展览",
 }
 
 
@@ -55,8 +58,8 @@ def _(raw: dict) -> EventModel:
         source_id=pid,
         title=title or f"演出 #{pid}",
         category=category,
-        city=raw.get("city", ""),
-        venue=str(raw.get("venueId", "")),
+        city=_normalize_city(raw.get("city", "")),
+        venue=_clean_venue(str(raw.get("venueId", ""))),
         start_date=start or datetime.now().strftime("%Y-%m-%d"),
         end_date=end,
         price_range=price,
@@ -78,7 +81,7 @@ def _(raw: dict) -> EventModel:
         source_id=rid,
         title=title,
         category=_guess_category(title),
-        city=raw.get("cityName") or raw.get("city", ""),
+        city=_normalize_city(raw.get("cityName") or raw.get("city", "")),
         venue=raw.get("venueName") or raw.get("venue", ""),
         start_date=_parse_date(raw.get("showTime") or raw.get("startTime") or raw.get("startDate", "")),
         price_range=raw.get("priceStr") or raw.get("priceRange", ""),
@@ -99,7 +102,7 @@ def _(raw: dict) -> EventModel:
         source_id=sid,
         title=raw.get("title") or raw.get("showName", ""),
         category=_guess_category(raw.get("title", "")),
-        city=raw.get("city") or raw.get("cityName", ""),
+        city=_normalize_city(raw.get("city") or raw.get("cityName", "")),
         venue=raw.get("venue") or raw.get("venueName", ""),
         start_date=_parse_date(raw.get("startTime") or raw.get("showTime", "")),
         price_range=raw.get("price") or raw.get("priceRange", ""),
@@ -212,9 +215,9 @@ def _(raw: dict) -> EventModel:
             source_id=raw.get("_source", "weibo_ai"),
             title=ai_title,
             category=raw.get("category", "其他"),
-            city=raw.get("city", ""),
+            city=_normalize_city(raw.get("city", "")),
             venue=raw.get("venue", ""),
-            start_date=raw.get("date") or datetime.now().strftime("%Y-%m-%d"),
+            start_date=raw.get("date") or "",
             end_date=raw.get("endDate"),
             status="预告",
             confidence=float(raw.get("confidence", 0.3)),
@@ -280,6 +283,20 @@ def _bili_status(label: str, countdown: str) -> str:
     if any(w in s for w in ["截止", "结束", "停售"]):
         return "已结束"
     return "售票中"
+
+
+def _normalize_city(city: str) -> str:
+    """统一城市名：去'市'后缀，处理别名。"""
+    c = city.strip().rstrip("市")
+    aliases = {"中国": "", "全国": ""}
+    return aliases.get(c, c)
+
+
+def _clean_venue(v: str) -> str:
+    """Hide numeric-only venue IDs (B站)."""
+    if not v or v.isdigit():
+        return ""
+    return v
 
 
 def _guess_status(raw: dict) -> str:

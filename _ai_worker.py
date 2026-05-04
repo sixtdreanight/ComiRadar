@@ -39,22 +39,21 @@ DATE_RE = re.compile(
     r"(\d{1,2}月\d{1,2}[日号]?)"
 )
 
-PROMPT = """你只做一件事：从社媒情报中提取真实的演出活动信息。
+PROMPT = """从社媒情报中提取近期或未来的演出活动信息（只提取今天之后的活动，忽略已结束的）。
 
-规则（严格执行）：
-1. 只提取有明确活动名称的演出，标题为空就不输出
-2. date 必须能用，无法确定就填 null
-3. city/venue 不确定就留空，不要编造
-4. category 严格从以下选：漫展、同人展、演唱会、音乐会、展览、其他
-5. 多条情报指向同一事件时合并为一条
-6. 忽略返图、自拍、闲聊类内容
+规则：
+1. 只提取有明确活动名称的演出
+2. date 必须是未来日期（2026年5月或更晚），过去的不要
+3. city/venue 不确定就留空
+4. category 从：漫展、同人展、演唱会、音乐会、展览、其他
+5. 多条情报指向同一事件时合并
+6. 返图、自拍、闲聊忽略
 
-输入情报：
+输入：
 {posts}
 
-输出纯JSON数组（不要markdown），每条格式：
-{"title":"活动名","date":"YYYY-MM-DD或null","endDate":"YYYY-MM-DD或null","city":"或空","venue":"或空","category":"漫展/同人展/演唱会/音乐会/展览/其他","confidence":0.5}
-confidence: 0.9=多方印证有明确日期, 0.7=有日期和城市, 0.5=只有部分信息"""
+输出纯JSON数组：
+[{{"title":"活动名","date":"YYYY-MM-DD","endDate":"YYYY-MM-DD或null","city":"或空","venue":"或空","category":"类别","confidence":0.7}}]"""
 
 
 def prefilter(posts: list[dict]) -> list[dict]:
@@ -119,6 +118,9 @@ def prefilter(posts: list[dict]) -> list[dict]:
         if key not in seen:
             seen.add(key)
             uniq.append(r)
+
+    # Filter out posts about past events (mention pre-2026 dates)
+    uniq = [r for r in uniq if not re.search(r"202[0-4]|2025", r["text"])]
 
     print(f"  [prefilter] {len(posts)}→{len(uniq)} posts", file=sys.stderr)
     return uniq
