@@ -196,14 +196,12 @@ def _parse_tlabel(tlabel: str) -> tuple[str, str | None]:
     """Parse B站 tlabel like '2026.05.04' or '2026.05.03 - 05.05'"""
     if not tlabel:
         return "", None
-    tlabel = tlabel.replace(".", "-").replace(" ", "")
+    tlabel = tlabel.replace(".", "-").strip()
     if " - " in tlabel:
-        parts = tlabel.split(" - ")
-        start = parts[0]
-        end = parts[1]
+        start, end = tlabel.split(" - ", 1)
         if len(end) < 8:
             end = start[:5] + "-" + end
-        return start, end
+        return start.strip(), end.strip()
     return tlabel, None
 
 

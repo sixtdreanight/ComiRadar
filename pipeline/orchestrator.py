@@ -17,10 +17,15 @@ class Orchestrator:
         self.session.commit()
 
     async def scrape_ticketing(self):
-        scrapers = [
-            s for s in AbstractScraper._registry.values()
-            if issubclass(s, TicketingScraper) and is_enabled(s.platform)
-        ]
+        scrapers = list(AbstractScraper._registry.values())
+        # Add standalone scrapers
+        try:
+            from scrapers.ticketing.bilibili import BilibiliScraper
+            if BilibiliScraper not in scrapers:
+                scrapers.insert(0, BilibiliScraper)
+        except ImportError:
+            pass
+        scrapers = [s for s in scrapers if is_enabled(getattr(s, 'platform', 'unknown'))]
         await self._run_ticketing(scrapers)
 
     async def scrape_social(self):
