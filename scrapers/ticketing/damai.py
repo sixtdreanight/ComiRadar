@@ -1,47 +1,76 @@
+import hashlib
 import json
+import os
+import re
+import time
 from scrapers.base import TicketingScraper
-from parsel import Selector
 
 
 class DamaiScraper(TicketingScraper):
     platform = "damai"
-    base_url = "https://search.damai.cn"
-    rate_limit = 5.0
+    base_url = "https://mtop.damai.cn"
+    rate_limit = 3.0
+    cookies = {
+        "cookie2": os.environ.get("DAMAI_COOKIE2", ""),
+        "_m_h5_tk": os.environ.get("DAMAI_M_H5_TK", ""),
+    }
+    APP_KEY = "12574478"
+
+    def _get_token(self) -> str:
+        cookie = self.cookies.get("_m_h5_tk", "")
+        m = re.search(r"([a-f0-9]+)_", cookie)
+        return m.group(1) if m else "undefined"
+
+    def _sign(self, data: dict) -> dict:
+        t = str(int(time.time() * 1000))
+        token = self._get_token()
+        data_str = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+        raw = f"{token}&{t}&{self.APP_KEY}&{data_str}"
+        sign = hashlib.md5(raw.encode()).hexdigest()
+        return {
+            "jsv": "2.7.2", "appKey": self.APP_KEY, "t": t, "sign": sign,
+            "api": "mtop.alibaba.damai.detail.search.search", "v": "1.0",
+            "type": "originaljson", "dataType": "json", "valueType": "original",
+            "data": data_str, "forceAntiCreep": "true", "AntiCreep": "true",
+            "useH5": "true",
+        }
+
+    async def _refresh_token(self):
+        try:
+            resp = await self.client.get(
+                "/h5/mtop.alibaba.damai.detail.search.search/1.0/",
+                params=self._sign({"keyword": "test", "pageIndex": 1, "pageSize": 1}),
+                headers={"Referer": "https://m.damai.cn/"},
+            )
+            for c in resp.cookies:
+                if c.name == "_m_h5_tk" and c.value:
+                    self.cookies["_m_h5_tk"] = c.value
+        except Exception:
+            pass
 
     async def scrape(self) -> list[dict]:
         results = []
         keywords = ["漫展", "二次元", "同人展", "Cosplay", "动漫"]
         for kw in keywords:
-            raw = await self.fetch(
-                "/search",
-                params={"keyword": kw, "pageIndex": 1, "pageSize": 30},
-                headers={
-                    "Referer": "https://www.damai.cn/",
-                    "Accept": "text/html,application/xhtml+xml",
-                },
-            )
-            data = self.parse(raw)
-            if not data:
-                break
-            results.extend(data)
+            for page in range(1, 6):
+                raw = await self.fetch(
+                    "/h5/mtop.alibaba.damai.detail.search.search/1.0/",
+                    params=self._sign({"keyword": kw, "pageIndex": page, "pageSize": 30}),
+                )
+                data = self.parse(raw)
+                if not data:
+                    break
+                results.extend(data)
+                if len(data) < 30:
+                    break
         return results
 
     def parse(self, raw: str) -> list[dict]:
-        # Try JSON embedded in HTML first
-        sel = Selector(text=raw)
-        script = sel.css("script#__NEXT_DATA__::text").get()
-        if script:
-            try:
-                obj = json.loads(script)
-                items = obj.get("props", {}).get("pageProps", {}).get("items", [])
-                return items
-            except (json.JSONDecodeError, KeyError):
-                pass
-        # Fallback: CSS extraction
-        items = []
-        for el in sel.css(".search-item, .item-card, .event-card"):
-            title = el.css(".title::text, .name::text").get()
-            link = el.css("a::attr(href)").get()
-            if title:
-                items.append({"title": title.strip(), "url": link or ""})
-        return items
+        try:
+            obj = json.loads(raw)
+            ret = obj.get("ret", [])
+            if isinstance(ret, str):
+                ret = json.loads(ret)
+            return ret if isinstance(ret, list) else ret.get("list", []) or []
+        except (json.JSONDecodeError, KeyError, TypeError):
+            return []

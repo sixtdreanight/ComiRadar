@@ -40,6 +40,25 @@ def cmd_run(args):
     cmd_notify(None)
 
 
+def cmd_stats(args):
+    from pipeline.orchestrator import get_stats
+    from db.store import get_session, get_all_events
+    print("=== Platform Health ===")
+    for k, v in get_stats().items():
+        print(f"  {k}: {v}")
+    session = get_session()
+    try:
+        events = get_all_events(session)
+        by_source = {}
+        for e in events:
+            by_source[e.source_name] = by_source.get(e.source_name, 0) + 1
+        print(f"\n=== Events: {len(events)} total ===")
+        for src, cnt in sorted(by_source.items()):
+            print(f"  {src}: {cnt}")
+    finally:
+        session.close()
+
+
 def _event_to_dict(event) -> dict:
     return {
         "id": event.id,
@@ -71,6 +90,7 @@ def main():
     sub.add_parser("export")
     sub.add_parser("notify")
     sub.add_parser("run")
+    sub.add_parser("stats")
 
     args = parser.parse_args()
     if args.command == "scrape":
@@ -81,6 +101,8 @@ def main():
         cmd_notify(args)
     elif args.command == "run":
         cmd_run(args)
+    elif args.command == "stats":
+        cmd_stats(args)
     else:
         parser.print_help()
 

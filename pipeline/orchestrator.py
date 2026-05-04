@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime
 from db.store import get_session, upsert_event, get_all_events
 from scrapers.base import AbstractScraper, TicketingScraper, SocialScraper
+from scrapers.health import record_success, record_failure, is_enabled, stats as health_stats
 from pipeline.dedup import deduplicate, make_fingerprint
 
 
@@ -18,14 +19,14 @@ class Orchestrator:
     async def scrape_ticketing(self):
         scrapers = [
             s for s in AbstractScraper._registry.values()
-            if issubclass(s, TicketingScraper)
+            if issubclass(s, TicketingScraper) and is_enabled(s.platform)
         ]
         await self._run_ticketing(scrapers)
 
     async def scrape_social(self):
         scrapers = [
             s for s in AbstractScraper._registry.values()
-            if issubclass(s, SocialScraper)
+            if issubclass(s, SocialScraper) and is_enabled(s.platform)
         ]
         await self._run_social(scrapers)
 
@@ -39,25 +40,33 @@ class Orchestrator:
                 for e in events:
                     e.fingerprint = make_fingerprint(e)
                     upsert_event(self.session, e)
+                self.session.commit()
+                record_success(cls.platform)
                 print(f"[{cls.platform}] {len(events)} events")
             except Exception as exc:
-                print(f"[{cls.platform}] failed: {exc}")
+                disabled = record_failure(cls.platform)
+                tag = " DISABLED" if disabled else ""
+                print(f"[{cls.platform}] failed: {exc}{tag}")
             finally:
                 await asyncio.sleep(1)
 
     async def _run_social(self, scraper_classes):
-        from pipeline.extractor import extract_events
+        from pipeline.ai_extractor import extract_with_ai
         for cls in scraper_classes:
             try:
                 scraper = cls()
                 raw = await scraper.scrape()
-                events = extract_events(cls.platform, raw)
+                events = await extract_with_ai(cls.platform, raw)
                 for e in events:
                     e.fingerprint = make_fingerprint(e)
                     upsert_event(self.session, e)
-                print(f"[{cls.platform}] {len(events)} events")
+                self.session.commit()
+                record_success(cls.platform)
+                print(f"[{cls.platform}] {len(events)} events (AI)")
             except Exception as exc:
-                print(f"[{cls.platform}] failed: {exc}")
+                disabled = record_failure(cls.platform)
+                tag = " DISABLED" if disabled else ""
+                print(f"[{cls.platform}] failed: {exc}{tag}")
             finally:
                 await asyncio.sleep(1)
 
@@ -86,3 +95,7 @@ class Orchestrator:
         from notifiers.bark import send as bk_send
         await sc_send(message)
         await bk_send(message)
+
+
+def get_stats() -> dict:
+    return health_stats()

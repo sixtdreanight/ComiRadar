@@ -59,20 +59,21 @@ def _(raw: dict) -> EventModel:
 
 @register("damai")
 def _(raw: dict) -> EventModel:
-    rid = str(raw.get("id") or raw.get("itemId", ""))
+    rid = str(raw.get("itemId") or raw.get("id") or raw.get("projectId", ""))
+    title = raw.get("name") or raw.get("title") or raw.get("itemName", "")
     return EventModel(
         id=f"damai_{rid}",
         source_type="ticketing",
         source_name="damai",
         source_id=rid,
-        title=raw.get("title") or raw.get("name", ""),
-        category=_guess_category(raw.get("title", "")),
-        city=raw.get("city") or raw.get("cityName", ""),
-        venue=raw.get("venue") or raw.get("venueName", ""),
-        start_date=_parse_date(raw.get("startDate") or raw.get("startTime", "")),
-        price_range=raw.get("priceRange") or raw.get("priceStr", ""),
-        ticket_url=raw.get("url") or raw.get("detailUrl", ""),
-        image_url=raw.get("image") or raw.get("poster", ""),
+        title=title,
+        category=_guess_category(title),
+        city=raw.get("cityName") or raw.get("city", ""),
+        venue=raw.get("venueName") or raw.get("venue", ""),
+        start_date=_parse_date(raw.get("showTime") or raw.get("startTime") or raw.get("startDate", "")),
+        price_range=raw.get("priceStr") or raw.get("priceRange", ""),
+        ticket_url=raw.get("detailUrl") or raw.get("url", ""),
+        image_url=raw.get("poster") or raw.get("image", ""),
         status=_guess_status(raw),
         confidence=1.0,
     )
