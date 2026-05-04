@@ -1,7 +1,11 @@
 from pathlib import Path
-from pydantic import BaseModel as PydanticBase
-
 import os
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env")
+except ImportError:
+    pass
 
 BASE_DIR = Path(__file__).parent
 DB_PATH = BASE_DIR / "events.db"
