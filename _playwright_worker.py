@@ -53,12 +53,71 @@ async def scrape_showstart() -> list[dict]:
     return []
 
 
+async def scrape_nyato() -> list[dict]:
+    """Scrape 喵特 manzhan listings."""
+    results = []
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page(viewport={"width": 1920, "height": 1080})
+        await page.goto("https://www.nyato.com/manzhan/p0", wait_until="networkidle", timeout=30000)
+        await page.wait_for_timeout(4000)
+        events = await page.evaluate("""() => {
+            const container = document.querySelector('.index-expolist');
+            if (!container) return [];
+            const items = [];
+            const allDivs = container.querySelectorAll('div');
+            let current = null;
+            allDivs.forEach(div => {
+                const text = div.textContent?.trim() || '';
+                if (/^\\d+$/.test(text) && div.nextElementSibling) {
+                    return; // rating number
+                }
+                if (text.length > 20 && text.length < 300 && /\\d{2}\\/\\d{2}/.test(text)) {
+                    items.push({
+                        text: text.replace(/\\s+/g, ' '),
+                    });
+                }
+            });
+            return items;
+        }""")
+        for e in events:
+            parsed = _parse_nyato_card(e.get("text", ""))
+            if parsed:
+                parsed["_source"] = "nyato"
+                results.append(parsed)
+        await browser.close()
+    print(f"  [nyato] {len(results)} events", file=sys.stderr)
+    return results
+
+
+def _parse_nyato_card(text: str) -> dict | None:
+    import re
+    # Format: "NAME CITY MM/DD - MM/DD 地址：PROVINCE CITY DISTRICT VENUE 综合评分："
+    m = re.match(r"(.+?)\s+(\S+?市?)\s+(\d{2}/\d{2})\s*-\s*(\d{2}/\d{2})\s*地址：(.+?)\s*综合评分", text)
+    if not m:
+        m = re.match(r"(.+?)\s+(\S+?市?)\s+(\d{2}/\d{2})\s*-\s*(\d{2}/\d{2})\s*地址：(.+)", text)
+    if not m:
+        return None
+    name, city, d1, d2, addr = m.groups()
+    year = 2026  # assume current year
+    return {
+        "title": name.strip(),
+        "city": city.strip().rstrip("市"),
+        "startDate": f"{year}-{d1.replace('/', '-')}",
+        "endDate": f"{year}-{d2.replace('/', '-')}",
+        "venue": addr.strip()[:100],
+    }
+
+
 async def main():
-    args = sys.argv[1:] if len(sys.argv) > 1 else ["weibo"]
+    args = sys.argv[1:] if len(sys.argv) > 1 else ["weibo", "nyato"]
     all_results = []
     for platform in args:
         if platform == "weibo":
             items = await scrape_weibo()
+            all_results.extend(items)
+        elif platform == "nyato":
+            items = await scrape_nyato()
             all_results.extend(items)
         elif platform == "showstart":
             items = await scrape_showstart()

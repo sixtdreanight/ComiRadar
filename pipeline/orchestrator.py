@@ -30,6 +30,12 @@ class Orchestrator:
                 scrapers.append(WeiboScraper)
         except ImportError:
             pass
+        try:
+            from scrapers.nyato import NyatoScraper
+            if NyatoScraper not in scrapers:
+                scrapers.insert(1, NyatoScraper)
+        except ImportError:
+            pass
         scrapers = [s for s in scrapers if is_enabled(getattr(s, 'platform', 'unknown'))]
         await self._run_ticketing(scrapers)
 

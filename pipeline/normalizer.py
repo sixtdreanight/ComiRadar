@@ -285,6 +285,25 @@ def _bili_status(label: str, countdown: str) -> str:
     return "售票中"
 
 
+@register("nyato")
+def _(raw: dict) -> EventModel:
+    pid = str(hash(raw.get("title", "") + raw.get("city", "") + raw.get("startDate", "")) % 10**10)
+    return EventModel(
+        id=f"nyato_{pid}",
+        source_type="ticketing",
+        source_name="nyato",
+        source_id=pid,
+        title=raw.get("title", ""),
+        category=_guess_category(raw.get("title", "")),
+        city=_normalize_city(raw.get("city", "")),
+        venue=raw.get("venue", ""),
+        start_date=raw.get("startDate", ""),
+        end_date=raw.get("endDate", ""),
+        status="售票中",
+        confidence=0.9,
+    )
+
+
 def _normalize_city(city: str) -> str:
     """统一城市名：去'市'后缀，处理别名。"""
     c = city.strip().rstrip("市")
