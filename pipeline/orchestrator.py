@@ -29,10 +29,14 @@ class Orchestrator:
         await self._run_ticketing(scrapers)
 
     async def scrape_social(self):
-        scrapers = [
-            s for s in AbstractScraper._registry.values()
-            if issubclass(s, SocialScraper) and is_enabled(s.platform)
-        ]
+        scrapers = list(AbstractScraper._registry.values())
+        try:
+            from scrapers.social.weibo import WeiboScraper
+            if WeiboScraper not in scrapers:
+                scrapers.insert(0, WeiboScraper)
+        except ImportError:
+            pass
+        scrapers = [s for s in scrapers if is_enabled(getattr(s, 'platform', 'unknown'))]
         await self._run_social(scrapers)
 
     async def _run_ticketing(self, scraper_classes):

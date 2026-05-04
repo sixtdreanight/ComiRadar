@@ -199,6 +199,31 @@ def _guess_category(title: str) -> str:
     return "其他"
 
 
+@register("weibo")
+def _(raw: dict) -> EventModel:
+    text = raw.get("text", "")
+    sid = str(hash(text) % 10**10)
+    city = _extract_city(text)
+    date = _extract_date(text)
+    venue = _extract_venue(text)
+    title = _extract_title(text)
+    if not date and not city:
+        date = datetime.now().strftime("%Y-%m-%d")
+    return EventModel(
+        id=f"weibo_{sid}",
+        source_type="social",
+        source_name="weibo",
+        source_id=sid,
+        title=title or "微博演出信息",
+        category=_guess_category(text),
+        city=city,
+        venue=venue,
+        start_date=date or datetime.now().strftime("%Y-%m-%d"),
+        status="预告",
+        confidence=0.3,
+    )
+
+
 def _parse_tlabel(tlabel: str) -> tuple[str, str | None]:
     """Parse B站 tlabel like '2026.05.04' or '2026.05.03 - 05.05'"""
     if not tlabel:
