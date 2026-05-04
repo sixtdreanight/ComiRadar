@@ -13,6 +13,7 @@ class AbstractScraper(ABC):
     platform: str = ""
     base_url: str = ""
     rate_limit: float = RATE_LIMIT
+    cookies: dict[str, str] = {}
     _registry: dict[str, type["AbstractScraper"]] = {}
 
     def __init_subclass__(cls, **kwargs):
@@ -27,9 +28,15 @@ class AbstractScraper(ABC):
     @property
     def client(self) -> httpx.AsyncClient:
         if self._client is None:
+            headers = {
+                "User-Agent": random.choice(UA_POOL),
+                "Accept": "text/html,application/json,*/*",
+                "Accept-Language": "zh-CN,zh;q=0.9",
+            }
             self._client = httpx.AsyncClient(
                 timeout=SCRAPE_TIMEOUT,
-                headers={"User-Agent": random.choice(UA_POOL)},
+                headers=headers,
+                cookies={k: v for k, v in self.cookies.items() if v},
                 follow_redirects=True,
             )
         return self._client
