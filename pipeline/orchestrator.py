@@ -36,6 +36,12 @@ class Orchestrator:
                 scrapers.insert(1, NyatoScraper)
         except ImportError:
             pass
+        try:
+            from scrapers.chinajoy import ChinajoyScraper
+            if ChinajoyScraper not in scrapers:
+                scrapers.append(ChinajoyScraper)
+        except ImportError:
+            pass
         scrapers = [s for s in scrapers if is_enabled(getattr(s, 'platform', 'unknown'))]
         await self._run_ticketing(scrapers)
 

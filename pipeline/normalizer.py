@@ -285,6 +285,15 @@ def _bili_status(label: str, countdown: str) -> str:
     return "售票中"
 
 
+@register("chinajoy")
+def _(raw: dict) -> EventModel:
+    return EventModel(id=f"cj_{raw.get('startDate','')}", source_type="ticketing",
+        source_name="chinajoy", source_id="cj2026", title=raw.get("title","ChinaJoy"),
+        category="漫展", city="上海", venue=raw.get("venue","上海新国际博览中心"),
+        start_date=raw.get("startDate","2026-07-31"), end_date=raw.get("endDate","2026-08-03"),
+        status="预告", confidence=0.95)
+
+
 @register("nyato")
 def _(raw: dict) -> EventModel:
     pid = str(hash(raw.get("title", "") + raw.get("city", "") + raw.get("startDate", "")) % 10**10)

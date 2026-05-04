@@ -92,6 +92,8 @@ async def scrape_nyato() -> list[dict]:
 
 def _parse_nyato_card(text: str) -> dict | None:
     import re
+    # Strip leading rating number
+    text = re.sub(r"^\d+\s+", "", text.strip())
     # Format: "NAME CITY MM/DD - MM/DD 地址：PROVINCE CITY DISTRICT VENUE 综合评分："
     m = re.match(r"(.+?)\s+(\S+?市?)\s+(\d{2}/\d{2})\s*-\s*(\d{2}/\d{2})\s*地址：(.+?)\s*综合评分", text)
     if not m:
@@ -109,6 +111,35 @@ def _parse_nyato_card(text: str) -> dict | None:
     }
 
 
+async def scrape_chinajoy() -> list[dict]:
+    """Scrape ChinaJoy official site."""
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page(viewport={"width": 1920, "height": 1080})
+        await page.goto("https://www.chinajoy.net/", wait_until="networkidle", timeout=30000)
+        await page.wait_for_timeout(3000)
+        text = await page.evaluate("document.body.innerText")
+        await browser.close()
+    results = []
+    import re
+    # Extract: "时间：2026.7/31-8/3" and "地点：上海新国际博览中心"
+    date_m = re.search(r"时间[：:]\s*(\d{4})[./](\d{1,2})/(\d{1,2})\s*-\s*(\d{1,2})/(\d{1,2})", text)
+    venue_m = re.search(r"地点[：:]\s*(.+?)(?:\n|$)", text)
+    name_m = re.search(r"第[一二三四五六七八九十\d]+届.+?(?:展览会|博览会|展会)", text)
+    if date_m:
+        y, m1, d1, m2, d2 = date_m.groups()
+        results.append({
+            "title": name_m.group(0) if name_m else "ChinaJoy 2026",
+            "city": "上海",
+            "startDate": f"{y}-{int(m1):02d}-{int(d1):02d}",
+            "endDate": f"{y}-{int(m2):02d}-{int(d2):02d}",
+            "venue": venue_m.group(1).strip() if venue_m else "上海新国际博览中心",
+            "_source": "chinajoy",
+        })
+    print(f"  [chinajoy] {len(results)} events", file=sys.stderr)
+    return results
+
+
 async def main():
     args = sys.argv[1:] if len(sys.argv) > 1 else ["weibo", "nyato"]
     all_results = []
@@ -118,6 +149,9 @@ async def main():
             all_results.extend(items)
         elif platform == "nyato":
             items = await scrape_nyato()
+            all_results.extend(items)
+        elif platform == "chinajoy":
+            items = await scrape_chinajoy()
             all_results.extend(items)
         elif platform == "showstart":
             items = await scrape_showstart()
