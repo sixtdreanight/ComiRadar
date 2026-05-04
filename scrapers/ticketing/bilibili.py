@@ -1,4 +1,5 @@
 import json
+import sys
 from scrapers.base import TicketingScraper
 from config import BILIBILI_COOKIES
 
@@ -23,6 +24,8 @@ class BilibiliScraper(TicketingScraper):
                     },
                 )
                 data = self.parse(raw)
+                if page == 1:
+                    print(f"  [bilibili] type={project_type}: {len(data)} events (page 1)", file=sys.stderr)
                 if not data:
                     break
                 results.extend(data)
@@ -34,8 +37,12 @@ class BilibiliScraper(TicketingScraper):
     def parse(self, raw: str) -> list[dict]:
         try:
             obj = json.loads(raw)
-            if obj.get("errno") != 0:
+            errno = obj.get("errno", -1)
+            if errno != 0:
+                print(f"  [bilibili] API errno={errno} msg={obj.get('msg','')}", file=sys.stderr)
                 return []
-            return obj.get("data", {}).get("result", []) or []
-        except (json.JSONDecodeError, KeyError):
+            result = obj.get("data", {}).get("result", []) or []
+            return result if isinstance(result, list) else []
+        except (json.JSONDecodeError, KeyError) as e:
+            print(f"  [bilibili] parse error: {e}, raw[:100]={raw[:100]}", file=sys.stderr)
             return []

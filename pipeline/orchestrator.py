@@ -51,18 +51,18 @@ class Orchestrator:
                 await asyncio.sleep(1)
 
     async def _run_social(self, scraper_classes):
-        from pipeline.ai_extractor import extract_with_ai
+        from pipeline.extractor import extract_events
         for cls in scraper_classes:
             try:
                 scraper = cls()
                 raw = await scraper.scrape()
-                events = await extract_with_ai(cls.platform, raw)
+                events = extract_events(cls.platform, raw)
                 for e in events:
                     e.fingerprint = make_fingerprint(e)
                     upsert_event(self.session, e)
                 self.session.commit()
                 record_success(cls.platform)
-                print(f"[{cls.platform}] {len(events)} events (AI)")
+                print(f"[{cls.platform}] {len(events)} events")
             except Exception as exc:
                 disabled = record_failure(cls.platform)
                 tag = " DISABLED" if disabled else ""
