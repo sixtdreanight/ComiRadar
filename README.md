@@ -1,5 +1,10 @@
 # ComiRadar
 
+[![Tests](https://img.shields.io/badge/tests-46%20passed-green)](https://github.com/sixtdreanight/ComiRadar/actions)
+[![Python](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
+
+Automatically discover anime conventions, doujin fairs, ACG concerts, and related events across China for the next 90 days — scraping multiple ticketing platforms and social media.
+
 自动发现未来 90 天内全国漫展、同人展、二次元演唱会等演出信息。
 
 **数据来源**：B站会员购、大麦、秀动、猫眼、票星球、永乐 + 微博、B站动态、小红书
