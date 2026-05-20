@@ -3,7 +3,7 @@
 [![Tests](https://img.shields.io/badge/tests-46%20passed-green)](https://github.com/sixtdreanight/ComiRadar/actions)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
 
-Automatically discover anime conventions, doujin fairs, ACG concerts, and related events across China for the next 90 days — scraping multiple ticketing platforms and social media.
+Finds anime cons, doujin fairs, and ACG concerts across China. Scrapes Bilibili, Damai, Maoyan, Weibo, and more. Covers the next 90 days.
 
 自动发现未来 90 天内全国漫展、同人展、二次元演唱会等演出信息。
 
