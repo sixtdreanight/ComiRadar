@@ -2,34 +2,60 @@
 
 [![Tests](https://img.shields.io/badge/tests-46%20passed-green)](https://github.com/sixtdreanight/ComiRadar/actions)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-Finds anime cons, doujin fairs, and ACG concerts across China. Scrapes Bilibili, Damai, Maoyan, Weibo, and more. Covers the next 90 days.
+**Automatically discovers anime cons, doujin fairs, and ACG concerts across China for the next 90 days.**
 
-自动发现未来 90 天内全国漫展、同人展、二次元演唱会等演出信息。
+**自动发现未来 90 天内全国漫展、同人展、二次元演唱会等演出信息。**
 
-**数据来源**：B站会员购、大麦、秀动、猫眼、票星球、永乐 + 微博、B站动态、小红书
+Scrapes 9 ticketing platforms (Bilibili, Damai, Showstart, Maoyan, Piaoxingqiu, Yongle, etc.) plus Weibo, Bilibili feeds, and Xiaohongshu. Each platform has its own parser, unified into a normalized event schema.
 
-## 使用
+抓取 B站会员购、大麦、秀动、猫眼、票星球、永乐等九大票务平台及微博、B站动态、小红书，统一规范化输出。
+
+### Data Sources / 数据来源
+
+Bilibili (会员购) · Damai (大麦) · Showstart (秀动) · Maoyan (猫眼) · Piaoxingqiu (票星球) · Yongle (永乐) · Weibo (微博) · Bilibili Dynamics · Xiaohongshu (小红书)
+
+### Deduplication Strategy / 去重策略
+
+Two-layer dedup: SHA256 fingerprint for exact matches + fuzzy merge on city/date/title for near-duplicates. Merged events combine fields from multiple sources.
+
+两层去重：SHA256 指纹精确匹配 + 城市/日期/标题模糊合并，合并缺失字段。
+
+## Usage / 使用
 
 ```bash
 pip install -r requirements.txt
-python main.py scrape   # 抓取所有平台
-python main.py export   # 导出 events.json
-python main.py notify   # 推送通知（需配置密钥）
-python main.py run      # 一键三连
+python main.py scrape   # Scrape all platforms / 抓取所有平台
+python main.py export   # Export events.json / 导出 events.json
+python main.py notify   # Push notifications / 推送通知（需配置密钥）
+python main.py run      # All three steps / 一键三连
 ```
 
-## 配置
+## Configuration / 配置
 
-编辑 `config.py` 设置推送密钥：
+Edit `config.py` to set notification keys:
 
 ```python
 NOTIFIERS = {
-    "serverchan": {"key": "你的SendKey"},
-    "bark": {"url": "https://api.day.app/你的Key"},
+    "serverchan": {"key": "your-SendKey"},
+    "bark": {"url": "https://api.day.app/your-key"},
 }
 ```
 
-## 与博客集成
+## Blog Integration / 与博客集成
 
-本仓库通过 git submodule 引入博客 [myBlog](https://github.com/sixtdreanight/myBlog)，由 GitHub Actions 定时运行，数据自动更新到 [演出页面](https://dreamnight.net.cn/anime-events)。
+This repo is included as a git submodule in [myBlog](https://github.com/sixtdreanight/myBlog). GitHub Actions runs the scraper on schedule, and results auto-sync to the [events page](https://dreamnight.net.cn/anime-events).
+
+本仓库通过 git submodule 引入博客，由 GitHub Actions 定时运行，数据自动更新到演出页面。
+
+## Tech Stack / 技术栈
+
+- **Scraping**: Python 3.11+ · Playwright · HTTPX
+- **Storage**: SQLite
+- **Scheduling**: GitHub Actions (cron)
+- **Integration**: Git submodule → Astro blog
+
+## License
+
+MIT
