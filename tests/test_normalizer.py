@@ -1,11 +1,9 @@
 import pytest
-from pipeline.normalizer import (
-    _normalize_city,
-    _parse_date,
-    _guess_category,
-    _parse_tlabel,
-    _format_price,
-)
+from chinese_scraper_utils import normalize_city as _normalize_city
+from chinese_scraper_utils import parse_date as _parse_date
+from chinese_scraper_utils import guess_category as _guess_category
+from pipeline.normalizer import _parse_tlabel, _format_price
+
 
 
 def test_normalize_city_strips_shi():
@@ -43,8 +41,7 @@ def test_parse_date_with_time():
 
 
 def test_parse_date_empty():
-    from datetime import datetime
-    assert _parse_date("") == datetime.now().strftime("%Y-%m-%d")
+    assert _parse_date("") == ""
 
 
 @pytest.mark.parametrize("title,expected", [

@@ -1,5 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from db.schema import engine, EventRecord, EventModel
 
@@ -11,18 +12,55 @@ def get_session() -> Session:
 def upsert_event(session: Session, event: EventModel) -> bool:
     """Returns True if new, False if updated."""
     existing = session.get(EventRecord, event.id)
-    record = EventRecord(**event.model_dump())
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     if existing:
-        if existing.scraped_at and record.scraped_at and datetime.fromisoformat(record.scraped_at) <= existing.scraped_at:
-            session.merge(existing)
+        # Check if this data is newer
+        record_scraped_at = _parse_scraped_at(event.scraped_at) or now
+        if existing.scraped_at and record_scraped_at <= existing.scraped_at:
             return False
         record_dict = event.model_dump()
         for key, value in record_dict.items():
+            if key == "scraped_at":
+                continue
             setattr(existing, key, value)
-        session.merge(existing)
+        existing.scraped_at = max(existing.scraped_at or now, record_scraped_at)
         return False
-    session.add(record)
-    return True
+    record = EventRecord(
+        id=event.id,
+        source_type=event.source_type,
+        source_name=event.source_name,
+        source_id=event.source_id,
+        title=event.title,
+        category=event.category,
+        city=event.city,
+        venue=event.venue,
+        start_date=event.start_date,
+        end_date=event.end_date,
+        price_range=event.price_range,
+        ticket_url=event.ticket_url,
+        image_url=event.image_url,
+        status=event.status,
+        confidence=event.confidence,
+        fingerprint=event.fingerprint,
+        canonical_id=event.canonical_id,
+        scraped_at=now,
+    )
+    try:
+        session.add(record)
+        session.flush()
+        return True
+    except IntegrityError:
+        session.rollback()
+        # Another process inserted the same event, treat as update
+        existing2 = session.get(EventRecord, event.id)
+        if existing2:
+            record_dict = event.model_dump()
+            for key, value in record_dict.items():
+                if key in ("scraped_at",):
+                    continue
+                setattr(existing2, key, value)
+            existing2.scraped_at = max(existing2.scraped_at or now, _parse_scraped_at(event.scraped_at) or now)
+        return False
 
 
 def get_all_events(session: Session) -> list[EventModel]:
@@ -58,3 +96,15 @@ def _row_to_model(row: EventRecord) -> EventModel:
         canonical_id=row.canonical_id,
         scraped_at=row.scraped_at.isoformat() if row.scraped_at else None,
     )
+
+
+def _parse_scraped_at(val: str | None) -> datetime | None:
+    """Parse scraped_at from ISO string to datetime, handling type mismatch."""
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val
+    try:
+        return datetime.fromisoformat(val)
+    except (ValueError, TypeError):
+        return None

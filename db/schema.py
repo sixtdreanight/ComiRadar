@@ -1,8 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel as PydanticBase
 from sqlalchemy import Column, String, Float, DateTime, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session
 from config import DB_PATH
+
+
+def _utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class Base(DeclarativeBase):
@@ -28,7 +32,7 @@ class EventRecord(Base):
     confidence: float = Column(Float, default=1.0)
     fingerprint: str | None = Column(String, nullable=True)
     canonical_id: str | None = Column(String, nullable=True)
-    scraped_at: datetime = Column(DateTime, default=datetime.utcnow)
+    scraped_at: datetime = Column(DateTime, default=_utcnow)
 
 
 engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)

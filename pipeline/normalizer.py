@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from uuid import uuid4
 from db.schema import EventModel
 from chinese_scraper_utils import stable_id, parse_date, normalize_city, guess_category, CATEGORY_ALIASES
 
@@ -19,14 +20,16 @@ def normalize(platform: str, raw_events: list[dict]) -> list[EventModel]:
 def _try_normalize(fn, raw: dict) -> EventModel | None:
     try:
         return fn(raw)
-    except Exception:
+    except Exception as e:
+        from sys import stderr
+        print(f"  [normalizer:{fn.__name__}] {type(e).__name__}: {e}", file=stderr)
         return None
 
 
 @register("bilibili")
 def _(raw: dict) -> EventModel:
     detail = raw.get("_detail") or {}
-    pid = str(raw.get("id") or detail.get("id", ""))
+    pid = str(raw.get("id") or detail.get("id", "") or uuid4().hex[:12])
     title = detail.get("name") or raw.get("project_name") or raw.get("name", "")
     tlabel = raw.get("tlabel", "")
     start, end = _parse_tlabel(tlabel)

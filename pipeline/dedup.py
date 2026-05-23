@@ -1,5 +1,6 @@
 import hashlib
 import re
+from datetime import datetime, timedelta
 from db.schema import EventModel
 
 TITLE_ALIASES = {
@@ -54,10 +55,11 @@ def deduplicate(events: list[EventModel]) -> list[EventModel]:
     merged = []
     for e in result:
         found = False
-        for m in merged:
+        for i, m in enumerate(merged):
             if _is_same_event(e, m):
                 if e.confidence > m.confidence:
                     _merge_fields(e, m)
+                    merged[i] = e
                 else:
                     _merge_fields(m, e)
                 found = True
@@ -82,12 +84,17 @@ def _is_same_event(a: EventModel, b: EventModel) -> bool:
     tb = _normalize_title(b.title)
     if ta == tb:
         return True
-    if len(ta) >= 4 and len(tb) >= 4 and (ta[:6] == tb[:6] or ta in tb or tb in ta):
+    if len(ta) >= 4 and len(tb) >= 4 and (ta[:4] == tb[:4] or ta in tb or tb in ta):
         return True
-    # Date proximity
+    # Date proximity: ±3 day window
     if a.start_date and b.start_date:
-        if a.start_date[:7] == b.start_date[:7]:  # same month
-            return True
+        try:
+            da = datetime.strptime(a.start_date, "%Y-%m-%d")
+            db = datetime.strptime(b.start_date, "%Y-%m-%d")
+            if abs((da - db).days) <= 3:
+                return True
+        except ValueError:
+            return False
     return False
 
 
@@ -98,7 +105,9 @@ def _merge_fields(target: EventModel, source: EventModel):
         tgt_val = getattr(target, field, None)
         if not tgt_val and src_val:
             setattr(target, field, src_val)
-    # Merge source names
+    # Merge source names (dedup to avoid "bilibili,bilibili,bilibili")
     src_names = set(target.source_name.split(","))
-    if source.source_name not in src_names:
-        target.source_name = target.source_name + "," + source.source_name
+    for s in source.source_name.split(","):
+        if s and s not in src_names:
+            src_names.add(s)
+    target.source_name = ",".join(sorted(src_names))

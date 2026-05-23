@@ -37,7 +37,7 @@ class AbstractScraper(ABC):
                 timeout=SCRAPE_TIMEOUT,
                 headers=headers,
                 cookies={k: v for k, v in self.cookies.items() if v},
-                follow_redirects=True,
+                follow_redirects=False,
             )
         return self._client
 
@@ -58,12 +58,12 @@ class AbstractScraper(ABC):
                 return resp.text
             except httpx.HTTPStatusError as e:
                 if e.response.status_code in (429, 503) and attempt < MAX_RETRIES - 1:
-                    await asyncio.sleep(2**attempt)
+                    await asyncio.sleep((2**attempt) + random.uniform(0, 1))
                     continue
                 raise ScraperError(f"{self.platform}: HTTP {e.response.status_code}") from e
             except httpx.RequestError as e:
                 if attempt < MAX_RETRIES - 1:
-                    await asyncio.sleep(2**attempt)
+                    await asyncio.sleep((2**attempt) + random.uniform(0, 1))
                     continue
                 raise ScraperError(f"{self.platform}: {e}") from e
         raise ScraperError(f"{self.platform}: max retries exceeded")

@@ -2,6 +2,7 @@
 import asyncio
 import json
 import sys
+from datetime import datetime
 from playwright.async_api import async_playwright
 
 KEYWORDS = ["漫展", "同人展", "二次元音乐会", "ACG演唱会", "动漫展", "动漫音乐会", "声优见面会", "地下偶像"]
@@ -101,7 +102,7 @@ def _parse_nyato_card(text: str) -> dict | None:
     if not m:
         return None
     name, city, d1, d2, addr = m.groups()
-    year = 2026  # assume current year
+    year = datetime.now().year
     return {
         "title": name.strip(),
         "city": city.strip().rstrip("市"),

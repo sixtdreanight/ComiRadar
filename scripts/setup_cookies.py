@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """从本地浏览器自动提取 B站/大麦 Cookie，写入 .env 或上传 GitHub Secrets。"""
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -8,7 +9,12 @@ from pathlib import Path
 try:
     import browser_cookie3
 except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "browser-cookie3", "-q"])
+    print("需要 browser-cookie3 库来读取浏览器 Cookie。")
+    answer = input("是否安装？[y/N] ").strip().lower()
+    if answer not in ("y", "yes"):
+        print("已取消。请手动安装: pip install browser-cookie3")
+        sys.exit(1)
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "browser-cookie3>=0.20,<1"])
     import browser_cookie3
 
 DOMAINS = {
@@ -66,6 +72,10 @@ def write_env(cookies: dict):
                 print(f"  {env_key}= (未找到)")
     ENV_FILE.parent.mkdir(parents=True, exist_ok=True)
     ENV_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    try:
+        os.chmod(ENV_FILE, 0o600)
+    except (OSError, NotImplementedError):
+        pass  # Windows 不支持 os.chmod 限制权限
     print(f"\n已写入 {ENV_FILE}")
 
 
@@ -87,8 +97,8 @@ def upload_github(cookies: dict):
             val = found.get(cookie_name, "")
             if val:
                 subprocess.run(
-                    ["gh", "secret", "set", env_key, "--repo", repo, "--body", val],
-                    check=False,
+                    ["gh", "secret", "set", env_key, "--repo", repo],
+                    input=val, text=True, check=False,
                 )
                 print(f"  {env_key} ✓")
             else:

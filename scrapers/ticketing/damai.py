@@ -14,18 +14,21 @@ class DamaiScraper(TicketingScraper):
         "cookie2": os.environ.get("DAMAI_COOKIE2", ""),
         "_m_h5_tk": os.environ.get("DAMAI_M_H5_TK", ""),
     }
-    APP_KEY = "12574478"
+    APP_KEY = os.environ.get("DAMAI_APP_KEY", "12574478")
 
     def _get_token(self) -> str:
         cookie = self.cookies.get("_m_h5_tk", "")
         m = re.search(r"([a-f0-9]+)_", cookie)
-        return m.group(1) if m else "undefined"
+        if not m:
+            raise RuntimeError("Damai _m_h5_tk cookie not found or invalid format")
+        return m.group(1)
 
     def _sign(self, data: dict) -> dict:
         t = str(int(time.time() * 1000))
         token = self._get_token()
         data_str = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
         raw = f"{token}&{t}&{self.APP_KEY}&{data_str}"
+        # NOTE: MD5 为服务端要求的签名算法，无法单方面更换
         sign = hashlib.md5(raw.encode()).hexdigest()
         return {
             "jsv": "2.7.2", "appKey": self.APP_KEY, "t": t, "sign": sign,
@@ -45,8 +48,9 @@ class DamaiScraper(TicketingScraper):
             for c in resp.cookies:
                 if c.name == "_m_h5_tk" and c.value:
                     self.cookies["_m_h5_tk"] = c.value
-        except Exception:
-            pass
+        except Exception as e:
+            from sys import stderr
+            print(f"  [damai] token refresh failed: {e}", file=stderr)
 
     async def scrape(self) -> list[dict]:
         results = []

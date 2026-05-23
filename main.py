@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import json
+from datetime import date, timedelta
 from config import EXPORT_PATH
 
 
@@ -31,7 +32,7 @@ def cmd_export(args):
                 cutoff = e.end_date
             else:
                 # No end date — assume runs 7 days
-                cutoff = (date.fromisoformat(e.start_date) + __import__('datetime').timedelta(days=7)).isoformat()
+                cutoff = (date.fromisoformat(e.start_date) + timedelta(days=7)).isoformat()
             if cutoff >= today and e.status != "已结束":
                 active.append(e)
         data = [_event_to_dict(e) for e in active]
