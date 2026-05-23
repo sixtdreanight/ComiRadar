@@ -70,6 +70,11 @@ This repo is included as a git submodule in [myBlog](https://github.com/sixtdrea
 - **Scheduling**: GitHub Actions (cron)
 - **Integration**: Git submodule → Astro blog
 
+## Related / 相关项目
+
+- [chinese-scraper-utils](https://github.com/sixtdreanight/chinese-scraper-utils) — Shared utilities extracted from this project
+- [myBlog](https://github.com/sixtdreanight/myBlog) — Events data displayed at dreamnight.net.cn/anime-events
+
 ## License
 
 MIT
