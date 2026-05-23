@@ -1,6 +1,6 @@
 from pathlib import Path
 import os
-from cn_scraper_utils import UA_POOL
+from chinese_scraper_utils import UA_POOL
 
 try:
     from dotenv import load_dotenv

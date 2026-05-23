@@ -3,7 +3,7 @@ import json
 import os
 import re
 import sys
-from cn_scraper_utils import CITIES, DeepSeekClient
+from chinese_scraper_utils import CITIES, DeepSeekClient
 
 API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 
