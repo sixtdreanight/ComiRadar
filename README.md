@@ -43,6 +43,20 @@ NOTIFIERS = {
 }
 ```
 
+## 环境变量
+
+以下环境变量用于各数据源的身份验证和系统配置：
+
+| 变量名 | 说明 |
+|--------|------|
+| `BILI_BUVID3` | B站 cookies 中的 `buvid3` |
+| `BILI_SESSDATA` | B站 cookies 中的 `SESSDATA` |
+| `BILI_BILI_JCT` | B站 cookies 中的 `bili_jct` |
+| `DAMAI_M_H5_TK` | 大麦 cookies 中的 `m_h5_tk` |
+| `DAMAI_COOKIE2` | 大麦 cookies 中的 `cookie2` |
+| `DEEPSEEK_API_KEY` | DeepSeek API 密钥（用于 AI 信息提取） |
+| `COMI_EXPORT_PATH` | 导出路径（可选，默认输出到项目目录） |
+
 ## Blog Integration / 与博客集成
 
 This repo is included as a git submodule in [myBlog](https://github.com/sixtdreanight/myBlog). GitHub Actions runs the scraper on schedule, and results auto-sync to the [events page](https://dreamnight.net.cn/anime-events).

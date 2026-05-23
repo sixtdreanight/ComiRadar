@@ -1,3 +1,4 @@
+from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from db.schema import engine, EventRecord, EventModel
@@ -12,7 +13,7 @@ def upsert_event(session: Session, event: EventModel) -> bool:
     existing = session.get(EventRecord, event.id)
     record = EventRecord(**event.model_dump())
     if existing:
-        if existing.scraped_at and record.scraped_at and record.scraped_at <= str(existing.scraped_at):
+        if existing.scraped_at and record.scraped_at and datetime.fromisoformat(record.scraped_at) <= existing.scraped_at:
             session.merge(existing)
             return False
         record_dict = event.model_dump()
@@ -55,5 +56,5 @@ def _row_to_model(row: EventRecord) -> EventModel:
         confidence=row.confidence,
         fingerprint=row.fingerprint,
         canonical_id=row.canonical_id,
-        scraped_at=str(row.scraped_at) if row.scraped_at else None,
+        scraped_at=row.scraped_at.isoformat() if row.scraped_at else None,
     )

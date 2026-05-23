@@ -3,17 +3,9 @@ import json
 import os
 import re
 import sys
-import httpx
+from cn_scraper_utils import CITIES, DeepSeekClient
 
 API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
-API_URL = "https://api.deepseek.com/v1/chat/completions"
-
-CITIES = [
-    "上海", "北京", "广州", "深圳", "成都", "杭州", "南京", "武汉", "重庆",
-    "西安", "长沙", "苏州", "天津", "郑州", "沈阳", "青岛", "厦门", "合肥",
-    "昆明", "大连", "济南", "哈尔滨", "长春", "南宁", "贵阳", "南昌", "太原",
-    "石家庄", "海口", "珠海", "常州", "无锡", "佛山", "东莞", "福州", "宁波",
-]
 
 VENUE_KW = [
     "会展中心", "展览中心", "国际博览中心", "展览馆", "体育馆", "大剧院",
@@ -126,7 +118,7 @@ def prefilter(posts: list[dict]) -> list[dict]:
     return uniq
 
 
-async def analyze(posts: list[dict]) -> list[dict]:
+def analyze(posts: list[dict]) -> list[dict]:
     if not API_KEY:
         return []
 
@@ -134,24 +126,17 @@ async def analyze(posts: list[dict]) -> list[dict]:
     if not refined:
         return []
 
-    async with httpx.AsyncClient(timeout=120) as client:
-        resp = await client.post(
-            API_URL,
-            headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
-            json={
-                "model": "deepseek-v4-flash",
-                "messages": [{"role": "user", "content": PROMPT.replace("{posts}", json.dumps(refined, ensure_ascii=False))}],
-                "temperature": 0.1,
-                "max_tokens": 6000,
-            },
-        )
-        data = resp.json()
-        content = data["choices"][0]["message"]["content"].strip()
-        content = content.removeprefix("```json").removesuffix("```").strip()
-        try:
-            events = json.loads(content)
-        except json.JSONDecodeError:
-            events = []
+    client = DeepSeekClient(api_key=API_KEY, model="deepseek-v4-flash")
+    content = client.chat(
+        messages=[{"role": "user", "content": PROMPT.replace("{posts}", json.dumps(refined, ensure_ascii=False))}],
+        temperature=0.1,
+        max_tokens=6000,
+    )
+    content = content.removeprefix("```json").removesuffix("```").strip()
+    try:
+        events = json.loads(content)
+    except json.JSONDecodeError:
+        events = []
 
     # Post-filter: require at least title
     events = [e for e in events if e.get("title") and e["title"] != "null"]
@@ -169,7 +154,7 @@ async def analyze(posts: list[dict]) -> list[dict]:
     return events
 
 
-async def main():
+def main():
     try:
         input_file = sys.argv[1] if len(sys.argv) > 1 else None
         if input_file:
@@ -179,7 +164,7 @@ async def main():
             posts = json.loads(sys.stdin.read())
 
         print(f"[AI] {len(posts)} posts", file=sys.stderr)
-        events = await analyze(posts)
+        events = analyze(posts)
         print(json.dumps(events, ensure_ascii=False))
     except Exception as e:
         print(f"[AI] error: {e}", file=sys.stderr)
@@ -187,5 +172,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
