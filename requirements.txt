@@ -1,3 +1,4 @@
+chinese-scraper-utils>=0.2.1
 httpx>=0.28
 parsel>=1.10
 pydantic>=2.0
