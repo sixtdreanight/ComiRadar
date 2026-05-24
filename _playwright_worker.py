@@ -24,7 +24,6 @@ async def scrape_weibo() -> list[dict]:
         page = await context.new_page()
         for keyword in KEYWORDS:
             try:
-                encoded = "%E6%BC%AB%E5%B1%95"  # will be overridden
                 await page.goto(
                     f"https://m.weibo.cn/search?containerid=100103type%3D1%26q%3D{keyword}",
                     wait_until="networkidle",

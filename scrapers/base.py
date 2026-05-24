@@ -1,8 +1,14 @@
 import asyncio
+import json
 import random
+import subprocess
+import sys
 from abc import ABC, abstractmethod
+from pathlib import Path
 import httpx
 from config import UA_POOL, RATE_LIMIT, SCRAPE_TIMEOUT, MAX_RETRIES
+
+ROOT = Path(__file__).parent.parent
 
 
 class ScraperError(Exception):
@@ -75,6 +81,54 @@ class AbstractScraper(ABC):
     @abstractmethod
     def parse(self, raw: str) -> list[dict]:
         ...
+
+
+class SubprocessScraper(AbstractScraper):
+    """子进程抓取器基类 — 用于需要独立进程的抓取器（浏览器自动化等）。
+
+    使用结构化 JSON 行协议（NDJSON）进行 IPC：
+    worker 每行输出一条 JSON 消息，最后一行必须是 JSON 数组（结果）。
+    """
+
+    worker_script: str = ""
+    worker_args: list[str] = []
+    worker_timeout: int = 180
+
+    async def scrape(self) -> list[dict]:
+        script = ROOT / self.worker_script
+        args = [sys.executable, str(script), *self.worker_args]
+        try:
+            result = subprocess.run(
+                args,
+                capture_output=True, text=True, timeout=self.worker_timeout, cwd=ROOT,
+            )
+        except subprocess.TimeoutExpired:
+            print(f"  [{self.platform}] worker timeout ({self.worker_timeout}s)", file=sys.stderr)
+            return []
+
+        if result.stderr:
+            for line in result.stderr.strip().split("\n"):
+                print(line, file=sys.stderr)
+
+        if result.returncode != 0:
+            print(f"  [{self.platform}] worker failed (exit {result.returncode})", file=sys.stderr)
+            return []
+
+        # NDJSON: last non-empty line is the result array
+        lines = [l.strip() for l in result.stdout.strip().split("\n") if l.strip()]
+        if not lines:
+            return []
+        try:
+            data = json.loads(lines[-1])
+            if isinstance(data, list):
+                print(f"  [{self.platform}] {len(data)} events", file=sys.stderr)
+                return data
+            return []
+        except (json.JSONDecodeError, IndexError):
+            return []
+
+    def parse(self, raw: str) -> list[dict]:
+        return json.loads(raw) if raw else []
 
 
 class TicketingScraper(AbstractScraper):
