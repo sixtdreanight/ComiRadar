@@ -1,5 +1,6 @@
 import hashlib
 import re
+import sys
 from datetime import datetime, timedelta
 from db.schema import EventModel
 
@@ -67,7 +68,7 @@ def deduplicate(events: list[EventModel]) -> list[EventModel]:
         if not found:
             merged.append(e)
 
-    print(f"Dedup: {len(events)}→{len(seen)}→{len(merged)}", file=__import__("sys").stderr)
+    print(f"Dedup: {len(events)}→{len(seen)}→{len(merged)}", file=sys.stderr)
     return merged
 
 

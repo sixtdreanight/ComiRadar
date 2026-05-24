@@ -18,7 +18,6 @@ async def cmd_scrape(args):
 
 def cmd_export(args):
     from db.store import get_session, get_all_events
-    from datetime import date
     session = get_session()
     try:
         events = get_all_events(session)
