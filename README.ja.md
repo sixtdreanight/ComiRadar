@@ -6,27 +6,66 @@
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**中国全土のアニメコンベンション、同人誌即売会、ACG コンサートを今後 90 日間自動検出します。**
+**今後90日間の全国の同人誌即売会・漫画イベント・アニソンライブなどのイベント情報を自動検出します。**
 
-Bilibili、Damai、Showstart、Maoyan、Piaoxingqiu、Yongle など 9 つのチケットプラットフォームに加え、Weibo、Bilibili フィード、Xiaohongshu をスクレイピングし、正規化されたイベントスキーマに統合します。
+Bilibili會員購、大麥、秀動、貓眼、票星球、永樂などの9つのチケットプラットフォーム、およびWeibo、Bilibili動態、小紅書からスクレイピングし、統一フォーマットで出力します。
 
----
+### データソース
 
-> 日本語翻訳は準備中です。完全な内容は [English](README.md) または [简体中文](README.zh-CN.md) をご参照ください。
->
-> Japanese translation in progress. Please refer to [English](README.md) or [简体中文](README.zh-CN.md) for complete content.
+Bilibili (會員購) · Damai (大麥) · Showstart (秀動) · Maoyan (貓眼) · Piaoxingqiu (票星球) · Yongle (永樂) · Weibo (微博) · Bilibili Dynamics · Xiaohongshu (小紅書)
 
----
+### 重複排除戦略
 
-## 使用方法
+2層の重複排除：SHA256フィンガープリントによる完全一致 + 都市/日付/タイトルによる曖昧マージ。欠落フィールドを補完します。
+
+## 使い方
 
 ```bash
 pip install -r requirements.txt
 python main.py scrape   # 全プラットフォームをスクレイピング
 python main.py export   # events.json をエクスポート
-python main.py notify   # 通知をプッシュ
-python main.py run      # 3 ステップ一括実行
+python main.py notify   # 通知をプッシュ（キーの設定が必要）
+python main.py run      # ワンクリックで全実行
 ```
+
+## 設定
+
+`config.py` を編集して通知キーを設定します：
+
+```python
+NOTIFIERS = {
+    "serverchan": {"key": "your-SendKey"},
+    "bark": {"url": "https://api.day.app/your-key"},
+}
+```
+
+## 環境変数
+
+| 変数名 | 説明 |
+|--------|------|
+| `BILI_BUVID3` | B站 cookies の `buvid3` |
+| `BILI_SESSDATA` | B站 cookies の `SESSDATA` |
+| `BILI_BILI_JCT` | B站 cookies の `bili_jct` |
+| `DAMAI_M_H5_TK` | 大麥 cookies の `m_h5_tk` |
+| `DAMAI_COOKIE2` | 大麥 cookies の `cookie2` |
+| `DEEPSEEK_API_KEY` | DeepSeek API キー（AI情報抽出用） |
+| `COMI_EXPORT_PATH` | エクスポートパス（オプション、デフォルトはプロジェクトディレクトリ） |
+
+## ブログ連携
+
+このリポジトリは git submodule として [myBlog](https://github.com/sixtdreanight/myBlog) を導入しており、GitHub Actions で定期的に実行され、データは [イベントページ](https://dreamnight.net.cn/anime-events) に自動反映されます。
+
+## 技術スタック
+
+- **スクレイピング**: Python 3.11+ · Playwright · HTTPX
+- **ストレージ**: SQLite
+- **スケジュール**: GitHub Actions (cron)
+- **連携**: Git submodule → Astro ブログ
+
+## 関連プロジェクト
+
+- [chinese-scraper-utils](https://github.com/sixtdreanight/chinese-scraper-utils) — 本プロジェクトから抽出した汎用ユーティリティライブラリ
+- [myBlog](https://github.com/sixtdreanight/myBlog) — イベントデータを dreamnight.net.cn/anime-events で表示
 
 ## ライセンス
 
@@ -36,7 +75,7 @@ MIT
 
 <div align="center">
 
-**Language / 语言 / 言語**
+**Language / 言語**
 
 [**English**](README.md) | [**简体中文**](README.zh-CN.md) | [**繁體中文**](README.zh-Hant.md) | [**日本語**](README.ja.md)
 
