@@ -1,0 +1,48 @@
+[project]
+name = "comiradar"
+version = "0.1.0"
+description = "Anime event scraper for China — 9 ticketing platforms, auto dedup, blog integration"
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "DreamNight", email = "support@dreamnight.net.cn" }
+]
+keywords = ["anime", "scraper", "events", "bilibili", "china"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.11"
+dependencies = [
+    "chinese-scraper-utils>=0.2.1",
+    "httpx>=0.28",
+    "parsel>=1.10",
+    "pydantic>=2.0",
+    "sqlalchemy>=2.0",
+    "aiosqlite>=0.20",
+    "rapidfuzz>=3.0",
+    "pyyaml>=6.0",
+    "browser-cookie3>=0.19",
+    "python-dotenv>=1.0",
+    "playwright>=1.45",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
+[project.urls]
+Homepage = "https://github.com/sixtdreanight/ComiRadar"
+Repository = "https://github.com/sixtdreanight/ComiRadar.git"
+Issues = "https://github.com/sixtdreanight/ComiRadar/issues"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
