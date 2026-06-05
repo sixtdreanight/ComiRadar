@@ -44,6 +44,7 @@ class AbstractScraper(ABC):
                 headers=headers,
                 cookies={k: v for k, v in self.cookies.items() if v},
                 follow_redirects=False,
+                verify=True,
             )
         return self._client
 
@@ -96,10 +97,14 @@ class SubprocessScraper(AbstractScraper):
 
     async def scrape(self) -> list[dict]:
         script = ROOT / self.worker_script
+        # Validate worker_args: block shell metacharacters
+        for arg in self.worker_args:
+            if set(str(arg)) & {';', '|', '&', '$', '`', '(', ')', '{', '}', '<', '>', '\n', '\r'}:
+                raise ScraperError(f"Invalid worker arg: {arg}")
         args = [sys.executable, str(script), *self.worker_args]
         try:
             result = subprocess.run(
-                args,
+                args, shell=False,
                 capture_output=True, text=True, timeout=self.worker_timeout, cwd=ROOT,
             )
         except subprocess.TimeoutExpired:

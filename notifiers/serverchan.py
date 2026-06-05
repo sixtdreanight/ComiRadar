@@ -7,10 +7,10 @@ async def send(message: str) -> bool:
     if not key:
         return False
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=True) as client:
             resp = await client.post(
-                f"https://sctapi.ftqq.com/{key}.send",
-                data={"title": "演出更新", "desp": message},
+                "https://sctapi.ftqq.com/send",
+                data={"sendkey": key, "title": "演出更新", "desp": message},
             )
             return resp.status_code == 200
     except Exception:

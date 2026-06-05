@@ -1,4 +1,5 @@
 import httpx
+from urllib.parse import quote
 from config import NOTIFIERS
 
 
@@ -7,8 +8,8 @@ async def send(message: str) -> bool:
     if not url:
         return False
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{url}/{message}")
+        async with httpx.AsyncClient(verify=True) as client:
+            resp = await client.get(f"{url}/{quote(message, safe='')}")
             return resp.status_code == 200
     except Exception:
         return False

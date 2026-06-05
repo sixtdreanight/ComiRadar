@@ -14,7 +14,7 @@ class DamaiScraper(TicketingScraper):
         "cookie2": os.environ.get("DAMAI_COOKIE2", ""),
         "_m_h5_tk": os.environ.get("DAMAI_M_H5_TK", ""),
     }
-    APP_KEY = os.environ.get("DAMAI_APP_KEY", "12574478")
+    APP_KEY = os.environ.get("DAMAI_APP_KEY")
 
     def _get_token(self) -> str:
         cookie = self.cookies.get("_m_h5_tk", "")
@@ -24,6 +24,8 @@ class DamaiScraper(TicketingScraper):
         return m.group(1)
 
     def _sign(self, data: dict) -> dict:
+        if not self.APP_KEY:
+            raise RuntimeError("DAMAI_APP_KEY environment variable is not set")
         t = str(int(time.time() * 1000))
         token = self._get_token()
         data_str = json.dumps(data, ensure_ascii=False, separators=(",", ":"))

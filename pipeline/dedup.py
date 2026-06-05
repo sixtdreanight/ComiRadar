@@ -22,6 +22,11 @@ def _normalize_title(title: str) -> str:
 
 
 def make_fingerprint(event: EventModel) -> str:
+    """Generate a dedup fingerprint (NOT for cryptographic use).
+
+    SHA256 truncated to 16 hex chars provides 64-bit collision resistance,
+    sufficient for event deduplication but not for security purposes.
+    """
     city = event.city.strip().rstrip("市")
     parts = [
         _normalize_title(event.title),

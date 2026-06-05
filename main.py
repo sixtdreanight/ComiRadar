@@ -1,8 +1,25 @@
 import argparse
 import asyncio
 import json
+import re
 from datetime import date, timedelta
 from config import EXPORT_PATH
+
+_SCRIPT_RE = re.compile(r"<script[^>]*>.*?</script>", re.DOTALL | re.IGNORECASE)
+_HTML_RE = re.compile(r"<[^>]+>")
+
+
+def _sanitize_str(s: str) -> str:
+    s = _SCRIPT_RE.sub("", s)
+    s = _HTML_RE.sub("", s)
+    return s
+
+
+def _sanitize_event(e: dict) -> dict:
+    for key in ("title", "venue", "category", "city"):
+        if key in e and isinstance(e[key], str):
+            e[key] = _sanitize_str(e[key])
+    return e
 
 
 async def cmd_scrape(args):
@@ -34,7 +51,7 @@ def cmd_export(args):
                 cutoff = (date.fromisoformat(e.start_date) + timedelta(days=7)).isoformat()
             if cutoff >= today and e.status != "已结束":
                 active.append(e)
-        data = [_event_to_dict(e) for e in active]
+        data = [_sanitize_event(_event_to_dict(e)) for e in active]
         with open(EXPORT_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         print(f"Exported {len(data)} events (filtered {len(events)-len(data)} expired)")
