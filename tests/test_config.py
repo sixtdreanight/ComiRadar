@@ -1,4 +1,4 @@
-from config import DAYS_AHEAD, SCRAPE_TIMEOUT, MAX_RETRIES, RATE_LIMIT, DB_PATH
+from config import DAYS_AHEAD, DB_PATH, MAX_RETRIES, RATE_LIMIT, SCRAPE_TIMEOUT
 
 
 def test_default_days_ahead():

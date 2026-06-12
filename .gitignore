@@ -1,4 +1,10 @@
 __pycache__/
 events.db
 events.json
+health.json
+.coverage
+comiradar.log
+data/
 .env
+.ruff_cache/
+.mypy_cache/

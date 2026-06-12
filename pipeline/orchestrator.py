@@ -1,9 +1,14 @@
 import asyncio
 from datetime import datetime
-from db.store import get_session, upsert_event, get_all_events
-from scrapers.base import AbstractScraper, TicketingScraper, SocialScraper
-from scrapers.health import record_success, record_failure, is_enabled, stats as health_stats
+
+from db.store import get_all_events, get_session, upsert_event
+from logger import get_logger
 from pipeline.dedup import deduplicate, make_fingerprint
+from scrapers.base import AbstractScraper, SocialScraper
+from scrapers.health import is_enabled, record_failure, record_success
+from scrapers.health import stats as health_stats
+
+_log = get_logger(__name__)
 
 
 class Orchestrator:
@@ -16,86 +21,75 @@ class Orchestrator:
         self._dedup_all()
         self.session.commit()
 
-    async def scrape_ticketing(self):
+    def _gather_scraper_classes(self) -> list[type]:
+        """Collect all registered scraper classes, including optional imports."""
         scrapers = list(AbstractScraper._registry.values())
-        try:
-            from scrapers.ticketing.bilibili import BilibiliScraper
-            if BilibiliScraper not in scrapers:
-                scrapers.insert(0, BilibiliScraper)
-        except ImportError:
-            pass
-        try:
-            from scrapers.social.weibo import WeiboScraper
-            if WeiboScraper not in scrapers:
-                scrapers.append(WeiboScraper)
-        except ImportError:
-            pass
-        try:
-            from scrapers.nyato import NyatoScraper
-            if NyatoScraper not in scrapers:
-                scrapers.insert(1, NyatoScraper)
-        except ImportError:
-            pass
-        try:
-            from scrapers.chinajoy import ChinajoyScraper
-            if ChinajoyScraper not in scrapers:
-                scrapers.append(ChinajoyScraper)
-        except ImportError:
-            pass
-        try:
-            from scrapers.ciefc import CiefcScraper
-            if CiefcScraper not in scrapers:
-                scrapers.append(CiefcScraper)
-        except ImportError:
-            pass
-        scrapers = [s for s in scrapers if is_enabled(getattr(s, 'platform', 'unknown'))]
-        await self._run_ticketing(scrapers)
+        for mod_path in [
+            "scrapers.ticketing.bilibili", "scrapers.social.weibo",
+            "scrapers.nyato", "scrapers.chinajoy", "scrapers.ciefc",
+        ]:
+            try:
+                cls_name = mod_path.rsplit(".", 1)[-1].capitalize() + "Scraper"
+                mod = __import__(mod_path, fromlist=[cls_name])
+                cls = getattr(mod, cls_name)
+                if cls not in scrapers:
+                    scrapers.append(cls)
+            except (ImportError, AttributeError):
+                pass
+        return [s for s in scrapers if is_enabled(getattr(s, "platform", "unknown"))]
+
+    async def scrape_ticketing(self):
+        scrapers = self._gather_scraper_classes()
+        await self._run_batch(scrapers, "ticketing")
 
     async def scrape_social(self):
-        scrapers = list(AbstractScraper._registry.values())
-        scrapers = [s for s in scrapers if is_enabled(getattr(s, 'platform', 'unknown'))]
-        if scrapers:
-            await self._run_social(scrapers)
+        scrapers = self._gather_scraper_classes()
+        social_scrapers = [
+            s for s in scrapers
+            if issubclass(s, SocialScraper) or getattr(s, "platform", "") == "weibo"
+        ]
+        if social_scrapers:
+            await self._run_batch(social_scrapers, "social")
 
-    async def _run_ticketing(self, scraper_classes):
-        from pipeline.normalizer import normalize
-        for cls in scraper_classes:
-            try:
-                scraper = cls()
-                raw = await scraper.scrape()
-                events = normalize(cls.platform, raw)
-                for e in events:
-                    e.fingerprint = make_fingerprint(e)
-                    upsert_event(self.session, e)
-                self.session.commit()
-                record_success(cls.platform)
-                print(f"[{cls.platform}] {len(events)} events")
-            except Exception as exc:
-                disabled = record_failure(cls.platform)
-                tag = " DISABLED" if disabled else ""
-                print(f"[{cls.platform}] failed: {exc}{tag}")
-            finally:
-                await asyncio.sleep(1)
-
-    async def _run_social(self, scraper_classes):
+    async def _run_batch(self, scraper_classes: list[type], batch_name: str):
+        """Run scrapers in parallel with per-scraper failure isolation."""
         from pipeline.extractor import extract_events
-        for cls in scraper_classes:
+        from pipeline.normalizer import normalize
+
+        async def _run_one(cls) -> tuple[str, int, str | None]:
+            """Returns (platform, event_count, error_message_or_None)."""
+            session = get_session()
             try:
                 scraper = cls()
                 raw = await scraper.scrape()
-                events = extract_events(cls.platform, raw)
+                if issubclass(cls, SocialScraper) or getattr(cls, "platform", "") == "weibo":
+                    events = extract_events(cls.platform, raw)
+                else:
+                    events = normalize(cls.platform, raw)
                 for e in events:
                     e.fingerprint = make_fingerprint(e)
-                    upsert_event(self.session, e)
-                self.session.commit()
+                    upsert_event(session, e)
+                session.commit()
                 record_success(cls.platform)
-                print(f"[{cls.platform}] {len(events)} events")
+                _log.info(f"[{cls.platform}] {len(events)} events")
+                return (cls.platform, len(events), None)
             except Exception as exc:
                 disabled = record_failure(cls.platform)
                 tag = " DISABLED" if disabled else ""
-                print(f"[{cls.platform}] failed: {exc}{tag}")
+                err_msg = f"{exc}{tag}"
+                _log.error(f"[{cls.platform}] failed: {err_msg}")
+                return (cls.platform, 0, err_msg)
             finally:
-                await asyncio.sleep(1)
+                session.close()
+
+        results = await asyncio.gather(*[_run_one(cls) for cls in scraper_classes], return_exceptions=True)
+
+        succeeded = sum(1 for r in results if isinstance(r, tuple) and r[2] is None)
+        failed = [r[0] for r in results if isinstance(r, tuple) and r[2] is not None]
+        total = len(scraper_classes)
+        _log.info(f"[{batch_name}] {succeeded}/{total} scrapers succeeded")
+        if failed:
+            _log.warning(f"[{batch_name}] failed platforms: {', '.join(failed)}")
 
     def _dedup_all(self):
         events = get_all_events(self.session)
@@ -103,13 +97,14 @@ class Orchestrator:
         for e in merged:
             upsert_event(self.session, e)
         self.session.commit()
-        print(f"Dedup: {len(events)} -> {len(merged)}")
+        _log.info(f"Dedup: {len(events)} -> {len(merged)}")
 
     async def check_and_notify(self):
         events = get_all_events(self.session)
         upcoming = [e for e in events if e.start_date >= datetime.now().strftime("%Y-%m-%d")]
         new_events = [e for e in upcoming if e.status in ("售票中", "即将开票")]
         if not new_events:
+            _log.info("No upcoming on-sale events to notify")
             return
         msg = "\n".join(
             f"• {e.title} | {e.city} | {e.start_date} | {e.price_range or '待定'}"
@@ -118,10 +113,14 @@ class Orchestrator:
         await self._notify_all(msg)
 
     async def _notify_all(self, message: str):
-        from notifiers.serverchan import send as sc_send
         from notifiers.bark import send as bk_send
-        await sc_send(message)
-        await bk_send(message)
+        from notifiers.serverchan import send as sc_send
+        results = await asyncio.gather(sc_send(message), bk_send(message), return_exceptions=True)
+        for i, name in enumerate(["serverchan", "bark"]):
+            if isinstance(results[i], Exception):
+                _log.warning(f"[{name}] notify failed: {results[i]}")
+            elif results[i]:
+                _log.info(f"[{name}] sent")
 
 
 def get_stats() -> dict:

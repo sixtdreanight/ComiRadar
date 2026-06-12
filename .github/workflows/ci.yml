@@ -7,6 +7,50 @@ on:
     branches: [main]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff
+      - name: Lint
+        run: ruff check .
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install mypy types-pyyaml
+      - name: Type check
+        run: mypy main.py config.py logger.py pipeline/ scrapers/ db/ notifiers/ --ignore-missing-imports
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit
+      - name: Security scan
+        run: bandit -r . -x tests/ -ll
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -22,6 +66,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest
-      - name: Run tests
-        run: python -m pytest tests/ -v
+          pip install pytest pytest-asyncio pytest-cov
+      - name: Run tests with coverage
+        run: python -m pytest tests/ -v --cov --cov-report=term-missing --cov-fail-under=70

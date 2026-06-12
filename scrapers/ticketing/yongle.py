@@ -1,5 +1,6 @@
-from scrapers.base import TicketingScraper
 from parsel import Selector
+
+from scrapers.base import TicketingScraper
 
 
 class YongleScraper(TicketingScraper):

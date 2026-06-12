@@ -5,14 +5,29 @@ import subprocess
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
+
 import httpx
-from config import UA_POOL, RATE_LIMIT, SCRAPE_TIMEOUT, MAX_RETRIES
+
+from config import MAX_RETRIES, RATE_LIMIT, SCRAPE_TIMEOUT, UA_POOL
+from logger import get_logger
+
+_log = get_logger(__name__)
 
 ROOT = Path(__file__).parent.parent
 
 
 class ScraperError(Exception):
     pass
+
+
+_SHELL_DANGEROUS = frozenset({";", "|", "&", "$", "`", "(", ")", "{", "}", "<", ">", "\n", "\r"})
+
+
+def validate_worker_args(args: list[str]) -> None:
+    """Block shell metacharacters in worker arguments."""
+    for arg in args:
+        if set(str(arg)) & _SHELL_DANGEROUS:
+            raise ScraperError(f"Invalid worker arg: {arg}")
 
 
 class AbstractScraper(ABC):
@@ -97,10 +112,7 @@ class SubprocessScraper(AbstractScraper):
 
     async def scrape(self) -> list[dict]:
         script = ROOT / self.worker_script
-        # Validate worker_args: block shell metacharacters
-        for arg in self.worker_args:
-            if set(str(arg)) & {';', '|', '&', '$', '`', '(', ')', '{', '}', '<', '>', '\n', '\r'}:
-                raise ScraperError(f"Invalid worker arg: {arg}")
+        validate_worker_args(self.worker_args)
         args = [sys.executable, str(script), *self.worker_args]
         try:
             result = subprocess.run(
@@ -108,15 +120,15 @@ class SubprocessScraper(AbstractScraper):
                 capture_output=True, text=True, timeout=self.worker_timeout, cwd=ROOT,
             )
         except subprocess.TimeoutExpired:
-            print(f"  [{self.platform}] worker timeout ({self.worker_timeout}s)", file=sys.stderr)
+            _log.warning(f"[{self.platform}] worker timeout ({self.worker_timeout}s)")
             return []
 
         if result.stderr:
             for line in result.stderr.strip().split("\n"):
-                print(line, file=sys.stderr)
+                _log.info(line)
 
         if result.returncode != 0:
-            print(f"  [{self.platform}] worker failed (exit {result.returncode})", file=sys.stderr)
+            _log.error(f"[{self.platform}] worker failed (exit {result.returncode})")
             return []
 
         # NDJSON: last non-empty line is the result array
@@ -126,7 +138,7 @@ class SubprocessScraper(AbstractScraper):
         try:
             data = json.loads(lines[-1])
             if isinstance(data, list):
-                print(f"  [{self.platform}] {len(data)} events", file=sys.stderr)
+                _log.info(f"[{self.platform}] {len(data)} events")
                 return data
             return []
         except (json.JSONDecodeError, IndexError):

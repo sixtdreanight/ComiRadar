@@ -1,8 +1,11 @@
 import hashlib
 import re
-import sys
-from datetime import datetime, timedelta
+from datetime import datetime
+
 from db.schema import EventModel
+from logger import get_logger
+
+_log = get_logger(__name__)
 
 TITLE_ALIASES = {
     "cp": "comicup", "cp展": "comicup", "cp2026": "comicup2026",
@@ -73,7 +76,7 @@ def deduplicate(events: list[EventModel]) -> list[EventModel]:
         if not found:
             merged.append(e)
 
-    print(f"Dedup: {len(events)}→{len(seen)}→{len(merged)}", file=sys.stderr)
+    _log.info(f"Dedup: {len(events)}->{len(seen)}->{len(merged)}")
     return merged
 
 
@@ -88,11 +91,13 @@ def _is_same_event(a: EventModel, b: EventModel) -> bool:
     # Title fuzzy match
     ta = _normalize_title(a.title)
     tb = _normalize_title(b.title)
-    if ta == tb:
-        return True
-    if len(ta) >= 4 and len(tb) >= 4 and (ta[:4] == tb[:4] or ta in tb or tb in ta):
-        return True
-    # Date proximity: ±3 day window
+    titles_similar = ta == tb or (
+        len(ta) >= 4 and len(tb) >= 4
+        and (ta[:4] == tb[:4] or ta in tb or tb in ta)
+    )
+    if not titles_similar:
+        return False
+    # Title match requires date proximity: ±3 day window
     if a.start_date and b.start_date:
         try:
             da = datetime.strptime(a.start_date, "%Y-%m-%d")

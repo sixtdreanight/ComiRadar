@@ -3,9 +3,12 @@ import asyncio
 import json
 import re
 from datetime import date, timedelta
+
 from config import EXPORT_PATH
+from logger import get_logger, setup_logging
 
 _SCRIPT_RE = re.compile(r"<script[^>]*>.*?</script>", re.DOTALL | re.IGNORECASE)
+_log = get_logger(__name__)
 _HTML_RE = re.compile(r"<[^>]+>")
 
 
@@ -34,7 +37,7 @@ async def cmd_scrape(args):
 
 
 def cmd_export(args):
-    from db.store import get_session, get_all_events
+    from db.store import get_all_events, get_session
     session = get_session()
     try:
         events = get_all_events(session)
@@ -54,7 +57,7 @@ def cmd_export(args):
         data = [_sanitize_event(_event_to_dict(e)) for e in active]
         with open(EXPORT_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"Exported {len(data)} events (filtered {len(events)-len(data)} expired)")
+        _log.info(f"Exported {len(data)} events (filtered {len(events)-len(data)} expired)")
     finally:
         session.close()
 
@@ -72,20 +75,20 @@ def cmd_run(args):
 
 
 def cmd_stats(args):
+    from db.store import get_all_events, get_session
     from pipeline.orchestrator import get_stats
-    from db.store import get_session, get_all_events
-    print("=== Platform Health ===")
+    _log.info("=== Platform Health ===")
     for k, v in get_stats().items():
-        print(f"  {k}: {v}")
+        _log.info(f"  {k}: {v}")
     session = get_session()
     try:
         events = get_all_events(session)
         by_source = {}
         for e in events:
             by_source[e.source_name] = by_source.get(e.source_name, 0) + 1
-        print(f"\n=== Events: {len(events)} total ===")
+        _log.info(f"=== Events: {len(events)} total ===")
         for src, cnt in sorted(by_source.items()):
-            print(f"  {src}: {cnt}")
+            _log.info(f"  {src}: {cnt}")
     finally:
         session.close()
 
@@ -113,6 +116,7 @@ def _event_to_dict(event) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(prog="anime-scraper")
+    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     sub = parser.add_subparsers(dest="command")
 
     scrape_p = sub.add_parser("scrape")
@@ -124,6 +128,12 @@ def main():
     sub.add_parser("stats")
 
     args = parser.parse_args()
+    setup_logging(level=args.log_level)
+
+    from config import validate_config
+    for warning in validate_config():
+        _log.warning(warning)
+
     if args.command == "scrape":
         asyncio.run(cmd_scrape(args))
     elif args.command == "export":

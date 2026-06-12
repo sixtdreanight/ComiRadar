@@ -1,7 +1,9 @@
 import re
 from datetime import datetime
+
+from chinese_scraper_utils import extract_city, extract_date, guess_category, stable_id
+
 from db.schema import EventModel
-from chinese_scraper_utils import stable_id, extract_city, extract_date, CITIES, guess_category
 
 VENUE_KEYWORDS = [
     "会展中心", "展览中心", "国际博览中心", "展览馆", "体育馆", "大剧院",

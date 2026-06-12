@@ -9,7 +9,7 @@ authors = [
 ]
 keywords = ["anime", "scraper", "events", "bilibili", "china"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: End Users/Desktop",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -35,7 +35,42 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "bandit>=1.7",
+    "types-pyyaml>=6.0",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+lint.select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
+lint.ignore = ["B904", "E741", "SIM102", "SIM105", "SIM108"]
+
+[tool.ruff.lint.per-file-ignores]
+"_*_worker.py" = ["E501"]
+"scripts/*" = ["E501"]
+"tests/*" = ["E501"]
+"pipeline/normalizer.py" = ["E501"]
+"pipeline/extractor.py" = ["E501"]
+"pipeline/orchestrator.py" = ["E501"]
+"main.py" = ["E501"]
+"scrapers/ticketing/maoyan.py" = ["E501"]
+"scrapers/social/weibo.py" = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["comiradar"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [project.urls]
 Homepage = "https://github.com/sixtdreanight/ComiRadar"

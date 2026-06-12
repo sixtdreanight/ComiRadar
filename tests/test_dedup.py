@@ -1,6 +1,5 @@
-import pytest
-from pipeline.dedup import make_fingerprint, deduplicate, _normalize_title
 from db.schema import EventModel
+from pipeline.dedup import _normalize_title, deduplicate, make_fingerprint
 
 
 def make_event(**kwargs) -> EventModel:
@@ -80,3 +79,48 @@ def test_deduplicate_merges_source_names():
     assert len(result) == 1
     assert "bilibili" in result[0].source_name
     assert "damai" in result[0].source_name
+
+
+def test_deduplicate_no_false_positive_different_titles_same_city():
+    """确保完全不同的事件不会被误合并。"""
+    a = make_event(id="a", title="BW2026", city="上海", start_date="2026-07-01")
+    b = make_event(id="b", title="ChinaJoy2026", city="上海", start_date="2026-07-31")
+    result = deduplicate([a, b])
+    assert len(result) == 2
+
+
+def test_deduplicate_fuzzy_merge_within_3_days():
+    """同一城市、相似标题、日期相差≤3天应被合并。"""
+    a = make_event(id="bilibili", title="CP2026 同人展", city="上海", start_date="2026-06-01", confidence=1.0)
+    b = make_event(id="damai", title="CP2026 漫展", city="上海", start_date="2026-06-03", confidence=0.8)
+    result = deduplicate([a, b])
+    assert len(result) == 1
+
+
+def test_deduplicate_no_merge_outside_3_days():
+    """日期相差>3天不合并。"""
+    a = make_event(id="a", title="CP2026", city="上海", start_date="2026-06-01")
+    b = make_event(id="b", title="CP2026", city="上海", start_date="2026-06-10")
+    result = deduplicate([a, b])
+    assert len(result) == 2
+
+
+def test_deduplicate_single_event_unchanged():
+    result = deduplicate([make_event()])
+    assert len(result) == 1
+
+
+def test_deduplicate_empty_list():
+    result = deduplicate([])
+    assert result == []
+
+
+def test_deduplicate_merge_fills_missing_fields():
+    a = make_event(id="a", title="CP2026", city="上海", start_date="2026-06-01",
+                   venue="", price_range=None, confidence=1.0)
+    b = make_event(id="b", title="CP2026", city="上海", start_date="2026-06-01",
+                   venue="上海会展中心", price_range="¥88-188", confidence=0.9)
+    result = deduplicate([a, b])
+    assert len(result) == 1
+    assert result[0].venue == "上海会展中心"
+    assert result[0].price_range == "¥88-188"

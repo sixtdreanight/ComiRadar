@@ -6,7 +6,11 @@ from pathlib import Path
 
 from chinese_scraper_utils import DeepSeekClient, EventExtractor
 
+from logger import get_logger
+from scrapers.base import validate_worker_args
+
 ROOT = Path(__file__).parent.parent.parent
+_log = get_logger(__name__)
 
 
 class WeiboScraper:
@@ -22,14 +26,17 @@ class WeiboScraper:
 
     async def scrape(self) -> list[dict]:
         # Step 1: Playwright 抓取微博帖文
+        worker_args = ["weibo"]
+        validate_worker_args(worker_args)
         pw_result = subprocess.run(
-            [sys.executable, str(ROOT / "_playwright_worker.py"), "weibo"],
+            [sys.executable, str(ROOT / "_playwright_worker.py"), *worker_args],
             capture_output=True, text=True, timeout=300, cwd=ROOT,
         )
         if pw_result.stderr:
             for line in pw_result.stderr.strip().split("\n"):
-                print(line, file=sys.stderr)
+                _log.info(line)
         if pw_result.returncode != 0:
+            _log.warning("[weibo] Playwright worker failed")
             return []
 
         try:
@@ -57,11 +64,11 @@ class WeiboScraper:
                     "confidence": e.confidence,
                     "_source": "weibo_ai",
                 })
-            print(f"  [weibo] EventExtractor found {len(events)} events", file=sys.stderr)
+            _log.info(f"[weibo] EventExtractor found {len(events)} events")
             return events
 
         # Fallback: 旧的关键词过滤
         event_keywords = ["展", "会", "演唱会", "音乐会", "见面会", "嘉年华", "ONLY", "only", "同人"]
         posts = [p for p in posts if any(kw in p.get("text", "") for kw in event_keywords)]
-        print(f"  [weibo] keyword fallback: {len(posts)} posts", file=sys.stderr)
+        _log.info(f"[weibo] keyword fallback: {len(posts)} posts")
         return []

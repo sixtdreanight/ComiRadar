@@ -1,8 +1,10 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from db.schema import engine, EventRecord, EventModel
+
+from db.schema import EventModel, EventRecord, engine
 
 
 def get_session() -> Session:
@@ -12,7 +14,7 @@ def get_session() -> Session:
 def upsert_event(session: Session, event: EventModel) -> bool:
     """Returns True if new, False if updated."""
     existing = session.get(EventRecord, event.id)
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     if existing:
         # Check if this data is newer
         record_scraped_at = _parse_scraped_at(event.scraped_at) or now
@@ -59,7 +61,8 @@ def upsert_event(session: Session, event: EventModel) -> bool:
                 if key in ("scraped_at",):
                     continue
                 setattr(existing2, key, value)
-            existing2.scraped_at = max(existing2.scraped_at or now, _parse_scraped_at(event.scraped_at) or now)
+            parsed = _parse_scraped_at(event.scraped_at) or now
+            existing2.scraped_at = max(existing2.scraped_at or now, parsed)
         return False
 
 

@@ -1,0 +1,32 @@
+services:
+  comiradar:
+    build: .
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./data:/app/data
+    environment:
+      - COMI_EXPORT_PATH=/app/data/events.json
+    command: run
+
+  scrape:
+    build: .
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./data:/app/data
+    profiles: [manual]
+    command: scrape all
+
+  export:
+    build: .
+    volumes:
+      - ./data:/app/data
+    profiles: [manual]
+    command: export
+
+  notify:
+    build: .
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./data:/app/data
+    profiles: [manual]
+    command: notify

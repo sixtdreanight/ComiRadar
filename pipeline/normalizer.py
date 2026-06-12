@@ -1,7 +1,17 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from uuid import uuid4
+
+from chinese_scraper_utils import (
+    extract_city,
+    extract_date,
+    guess_category,
+    normalize_city,
+    parse_date,
+    stable_id,
+)
+
 from db.schema import EventModel
-from chinese_scraper_utils import stable_id, parse_date, normalize_city, guess_category, CATEGORY_ALIASES
+from pipeline.extractor import _extract_title, _extract_venue
 
 NORMALIZERS: dict[str, callable] = {}
 
@@ -21,8 +31,8 @@ def _try_normalize(fn, raw: dict) -> EventModel | None:
     try:
         return fn(raw)
     except Exception as e:
-        from sys import stderr
-        print(f"  [normalizer:{fn.__name__}] {type(e).__name__}: {e}", file=stderr)
+        from logger import get_logger
+        get_logger(__name__).warning(f"[normalizer:{fn.__name__}] {type(e).__name__}: {e}")
         return None
 
 
@@ -191,8 +201,8 @@ def _(raw: dict) -> EventModel:
     # Raw text format (fallback)
     text = raw.get("text", "")
     sid = stable_id(text)
-    city = _extract_city(text)
-    date = _extract_date(text)
+    city = extract_city(text)
+    date = extract_date(text)
     venue = _extract_venue(text)
     title = _extract_title(text)
     if not date and not city:

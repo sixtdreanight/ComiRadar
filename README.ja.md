@@ -2,9 +2,10 @@
 
 # ComiRadar
 
-[![Tests](https://img.shields.io/badge/tests-46%20passed-green)](https://github.com/sixtdreanight/ComiRadar/actions)
+[![CI](https://github.com/sixtdreanight/ComiRadar/actions/workflows/ci.yml/badge.svg)](https://github.com/sixtdreanight/ComiRadar/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Status](https://img.shields.io/badge/status-beta-orange)](https://github.com/sixtdreanight/ComiRadar)
 
 **今後90日間の全国の同人誌即売会・漫画イベント・アニソンライブなどのイベント情報を自動検出します。**
 
@@ -26,6 +27,20 @@ python main.py scrape   # 全プラットフォームをスクレイピング
 python main.py export   # events.json をエクスポート
 python main.py notify   # 通知をプッシュ（キーの設定が必要）
 python main.py run      # ワンクリックで全実行
+```
+
+## Docker
+
+```bash
+# ビルドして完全なパイプラインを実行
+docker compose run --rm comiradar
+
+# 個別のステップを実行
+docker compose run --rm scrape   # スクレイピングのみ
+docker compose run --rm export   # エクスポートのみ
+docker compose run --rm notify   # 通知のみ
+
+# データは ./data/ に永続化されます
 ```
 
 ## 設定

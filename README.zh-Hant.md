@@ -2,9 +2,10 @@
 
 # ComiRadar
 
-[![Tests](https://img.shields.io/badge/tests-46%20passed-green)](https://github.com/sixtdreanight/ComiRadar/actions)
+[![CI](https://github.com/sixtdreanight/ComiRadar/actions/workflows/ci.yml/badge.svg)](https://github.com/sixtdreanight/ComiRadar/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Status](https://img.shields.io/badge/status-beta-orange)](https://github.com/sixtdreanight/ComiRadar)
 
 **自動發現未來 90 天內全國漫展、同人展、二次元演唱會等演出資訊。**
 
@@ -26,6 +27,20 @@ python main.py scrape   # 擷取所有平台
 python main.py export   # 匯出 events.json
 python main.py notify   # 推送通知（需設定金鑰）
 python main.py run      # 一鍵三連
+```
+
+## Docker
+
+```bash
+# 構建並執行完整管線
+docker compose run --rm comiradar
+
+# 單獨執行各步驟
+docker compose run --rm scrape   # 僅擷取
+docker compose run --rm export   # 僅匯出
+docker compose run --rm notify   # 僅通知
+
+# 資料持久化於 ./data/
 ```
 
 ## 設定

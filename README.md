@@ -2,9 +2,10 @@
 
 # ComiRadar
 
-[![Tests](https://img.shields.io/badge/tests-46%20passed-green)](https://github.com/sixtdreanight/ComiRadar/actions)
+[![CI](https://github.com/sixtdreanight/ComiRadar/actions/workflows/ci.yml/badge.svg)](https://github.com/sixtdreanight/ComiRadar/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Status](https://img.shields.io/badge/status-beta-orange)](https://github.com/sixtdreanight/ComiRadar)
 
 **Automatically discovers anime cons, doujin fairs, and ACG concerts across China for the next 90 days.**
 
@@ -26,6 +27,20 @@ python main.py scrape   # Scrape all platforms
 python main.py export   # Export events.json
 python main.py notify   # Push notifications (configure keys first)
 python main.py run      # All three steps
+```
+
+## Docker
+
+```bash
+# Build and run the full pipeline
+docker compose run --rm comiradar
+
+# Run individual steps
+docker compose run --rm scrape   # scrape only
+docker compose run --rm export   # export only
+docker compose run --rm notify   # notifications only
+
+# Data persists in ./data/
 ```
 
 ## Configuration

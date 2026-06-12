@@ -1,6 +1,7 @@
-from pathlib import Path
 import os
-from chinese_scraper_utils import UA_POOL
+from pathlib import Path
+
+from chinese_scraper_utils import UA_POOL  # noqa: F401 — re-exported for scrapers.base
 
 try:
     from dotenv import load_dotenv
@@ -10,6 +11,7 @@ except ImportError:
 
 BASE_DIR = Path(__file__).parent
 DB_PATH = BASE_DIR / "events.db"
+HEALTH_PATH = BASE_DIR / "health.json"
 EXPORT_PATH = Path(os.environ.get("COMI_EXPORT_PATH", BASE_DIR / "events.json"))
 DAYS_AHEAD = 90
 SCRAPE_TIMEOUT = 30
@@ -28,3 +30,19 @@ BILIBILI_COOKIES: dict[str, str] = {
     "SESSDATA": os.environ.get("BILI_SESSDATA", ""),
     "bili_jct": os.environ.get("BILI_BILI_JCT", ""),
 }
+
+
+def validate_config() -> list[str]:
+    """Check required config at startup. Returns list of warnings."""
+    warnings: list[str] = []
+    if not os.environ.get("DEEPSEEK_API_KEY"):
+        warnings.append("DEEPSEEK_API_KEY not set — LLM extraction & hotspot discovery disabled")
+    if not any(BILIBILI_COOKIES.values()):
+        warnings.append("BILIBILI_COOKIES not set — Bilibili scraper may fail")
+    if not os.environ.get("DAMAI_APP_KEY"):
+        warnings.append("DAMAI_APP_KEY not set — Damai scraper will fail")
+    sc_key = NOTIFIERS.get("serverchan", {}).get("key", "")
+    bark_url = NOTIFIERS.get("bark", {}).get("url", "")
+    if not sc_key and not bark_url:
+        warnings.append("No notifiers configured — push notifications disabled")
+    return warnings

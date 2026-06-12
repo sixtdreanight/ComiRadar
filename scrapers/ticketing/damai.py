@@ -3,7 +3,11 @@ import json
 import os
 import re
 import time
+
+from logger import get_logger
 from scrapers.base import TicketingScraper
+
+_log = get_logger(__name__)
 
 
 class DamaiScraper(TicketingScraper):
@@ -51,8 +55,7 @@ class DamaiScraper(TicketingScraper):
                 if c.name == "_m_h5_tk" and c.value:
                     self.cookies["_m_h5_tk"] = c.value
         except Exception as e:
-            from sys import stderr
-            print(f"  [damai] token refresh failed: {e}", file=stderr)
+            _log.warning(f"[damai] token refresh failed: {e}")
 
     async def scrape(self) -> list[dict]:
         results = []

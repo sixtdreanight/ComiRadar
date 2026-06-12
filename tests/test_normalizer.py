@@ -1,9 +1,9 @@
 import pytest
+from chinese_scraper_utils import guess_category as _guess_category
 from chinese_scraper_utils import normalize_city as _normalize_city
 from chinese_scraper_utils import parse_date as _parse_date
-from chinese_scraper_utils import guess_category as _guess_category
-from pipeline.normalizer import _parse_tlabel, _format_price
 
+from pipeline.normalizer import _format_price, _parse_tlabel
 
 
 def test_normalize_city_strips_shi():
@@ -95,3 +95,47 @@ def test_format_price_single():
 
 def test_format_price_none():
     assert _format_price(None, None) == "待定"
+
+
+def test_normalize_bilibili():
+    from pipeline.normalizer import normalize
+    raw = [{"id": 123, "name": "CP2026", "city": "上海市", "tlabel": "2026.06.01 - 06.02", "project_type": 1}]
+    result = normalize("bilibili", raw)
+    assert len(result) == 1
+    assert result[0].source_name == "bilibili"
+    assert result[0].city == "上海"
+    assert result[0].start_date == "2026-06-01"
+    assert result[0].end_date is not None
+
+
+def test_normalize_damai():
+    from pipeline.normalizer import normalize
+    raw = [{"itemId": 456, "name": "CP2026漫展", "cityName": "上海", "showTime": "2026-06-01", "venueName": "会展中心"}]
+    result = normalize("damai", raw)
+    assert len(result) == 1
+    assert result[0].city == "上海"
+    assert result[0].start_date == "2026-06-01"
+
+
+def test_normalize_showstart():
+    from pipeline.normalizer import normalize
+    raw = [{"id": 789, "title": "Live Show", "city": "北京", "startTime": "2026-07-01", "price": "¥199"}]
+    result = normalize("showstart", raw)
+    assert len(result) == 1
+    assert result[0].city == "北京"
+
+
+def test_normalize_unknown_platform():
+    from pipeline.normalizer import normalize
+    result = normalize("unknown", [{"title": "test"}])
+    assert result == []
+
+
+def test_bili_status_hot_sale():
+    from pipeline.normalizer import _bili_status
+    assert _bili_status("热卖中", "") == "售票中"
+
+
+def test_bili_status_ended():
+    from pipeline.normalizer import _bili_status
+    assert _bili_status("已结束", "") == "已结束"

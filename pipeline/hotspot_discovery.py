@@ -5,17 +5,15 @@ Hotspot Discovery — 从微博/知乎热搜中自动发现新的漫展活动。
 现在可以通过社媒热点提前发现未上架的漫展/演唱会消息。
 """
 
-import os
 from chinese_scraper_utils import (
+    DeepSeekClient,
+    EventExtractor,
+    ExtractedEvent,
+    HotTopic,
     scrape_weibo_hot,
     scrape_zhihu_hot,
-    EventExtractor,
-    DeepSeekClient,
     search_web,
-    HotTopic,
-    ExtractedEvent,
 )
-
 
 # 活动相关关键词（粗筛，省 AI 费用）
 _EVENT_KEYWORDS = [

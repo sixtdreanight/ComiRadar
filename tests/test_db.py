@@ -1,8 +1,10 @@
-import tempfile
 import os
+import tempfile
+
 import pytest
-from db.schema import EventModel, EventRecord, Base, create_engine
 from sqlalchemy.orm import Session
+
+from db.schema import Base, EventModel, EventRecord, create_engine
 
 
 @pytest.fixture
