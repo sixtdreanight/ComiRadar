@@ -68,7 +68,7 @@ NOTIFIERS = {
 
 ## 与博客集成
 
-本仓库通过 git submodule 引入 [myBlog](https://github.com/sixtdreanight/myBlog)，由 GitHub Actions 定时运行，数据自动更新到 [演出页面](https://dreamnight.net.cn/anime-events)。
+本仓库通过 git submodule 引入 [Blog-mizuki](https://github.com/sixtdreanight/Blog-mizuki)，由 GitHub Actions 定时运行，数据自动更新到 [演出页面](https://dreamnight.net.cn/anime-events)。
 
 ## 技术栈
 
@@ -80,7 +80,8 @@ NOTIFIERS = {
 ## 相关项目
 
 - [chinese-scraper-utils](https://github.com/sixtdreanight/chinese-scraper-utils) — 从本项目抽离的通用工具库
-- [myBlog](https://github.com/sixtdreanight/myBlog) — 演出数据展示在 dreamnight.net.cn/anime-events
+- [Blog-mizuki](https://github.com/sixtdreanight/Blog-mizuki) — 演出数据展示在 dreamnight.net.cn/anime-events（当前）
+- [myBlog](https://github.com/sixtdreanight/myBlog) — 旧博客（已归档）
 
 ## 许可证
 

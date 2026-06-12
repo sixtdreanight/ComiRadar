@@ -68,7 +68,7 @@ NOTIFIERS = {
 
 ## ブログ連携
 
-このリポジトリは git submodule として [myBlog](https://github.com/sixtdreanight/myBlog) を導入しており、GitHub Actions で定期的に実行され、データは [イベントページ](https://dreamnight.net.cn/anime-events) に自動反映されます。
+このリポジトリは git submodule として [Blog-mizuki](https://github.com/sixtdreanight/Blog-mizuki) を導入しており、GitHub Actions で定期的に実行され、データは [イベントページ](https://dreamnight.net.cn/anime-events) に自動反映されます。
 
 ## 技術スタック
 
@@ -80,7 +80,8 @@ NOTIFIERS = {
 ## 関連プロジェクト
 
 - [chinese-scraper-utils](https://github.com/sixtdreanight/chinese-scraper-utils) — 本プロジェクトから抽出した汎用ユーティリティライブラリ
-- [myBlog](https://github.com/sixtdreanight/myBlog) — イベントデータを dreamnight.net.cn/anime-events で表示
+- [Blog-mizuki](https://github.com/sixtdreanight/Blog-mizuki) — イベントデータを dreamnight.net.cn/anime-events で表示（現在）
+- [myBlog](https://github.com/sixtdreanight/myBlog) — 旧ブログ（アーカイブ済み）
 
 ## ライセンス
 

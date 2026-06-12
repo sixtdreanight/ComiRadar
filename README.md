@@ -68,7 +68,7 @@ NOTIFIERS = {
 
 ## Blog Integration
 
-This repo is included as a git submodule in [myBlog](https://github.com/sixtdreanight/myBlog). GitHub Actions runs the scraper on schedule, and results auto-sync to the [events page](https://dreamnight.net.cn/anime-events).
+This repo is included as a git submodule in [Blog-mizuki](https://github.com/sixtdreanight/Blog-mizuki). GitHub Actions runs the scraper on schedule, and results auto-sync to the [events page](https://dreamnight.net.cn/anime-events).
 
 ## Tech Stack
 
@@ -80,7 +80,8 @@ This repo is included as a git submodule in [myBlog](https://github.com/sixtdrea
 ## Related
 
 - [chinese-scraper-utils](https://github.com/sixtdreanight/chinese-scraper-utils) — Shared utilities extracted from this project
-- [myBlog](https://github.com/sixtdreanight/myBlog) — Events data displayed at dreamnight.net.cn/anime-events
+- [Blog-mizuki](https://github.com/sixtdreanight/Blog-mizuki) — Events data displayed at dreamnight.net.cn/anime-events (current)
+- [myBlog](https://github.com/sixtdreanight/myBlog) — Previous blog (archived)
 
 ## License
 

@@ -68,7 +68,7 @@ NOTIFIERS = {
 
 ## 與部落格整合
 
-本倉庫透過 git submodule 引入 [myBlog](https://github.com/sixtdreanight/myBlog)，由 GitHub Actions 定時執行，資料自動更新到 [演出頁面](https://dreamnight.net.cn/anime-events)。
+本倉庫透過 git submodule 引入 [Blog-mizuki](https://github.com/sixtdreanight/Blog-mizuki)，由 GitHub Actions 定時執行，資料自動更新到 [演出頁面](https://dreamnight.net.cn/anime-events)。
 
 ## 技術棧
 
@@ -80,7 +80,8 @@ NOTIFIERS = {
 ## 相關專案
 
 - [chinese-scraper-utils](https://github.com/sixtdreanight/chinese-scraper-utils) — 從本專案抽離的通用工具庫
-- [myBlog](https://github.com/sixtdreanight/myBlog) — 演出資料展示在 dreamnight.net.cn/anime-events
+- [Blog-mizuki](https://github.com/sixtdreanight/Blog-mizuki) — 演出資料展示在 dreamnight.net.cn/anime-events（當前）
+- [myBlog](https://github.com/sixtdreanight/myBlog) — 舊部落格（已歸檔）
 
 ## 授權條款
 
